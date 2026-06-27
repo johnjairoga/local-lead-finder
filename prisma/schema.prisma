@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Job {
+  id              String    @id @default(cuid())
+  status          JobStatus @default(PENDING)
+  searchTerm      String
+  location        String
+  maxResults      Int
+  provider        String    @default("google-maps")
+
+  processedCount  Int       @default(0)
+  totalCount      Int       @default(0)
+  qualifiedCount  Int       @default(0)
+  progress        Int       @default(0)
+  currentBusiness String?
+
+  errorMessage    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  leads Lead[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Lead {
+  id         String   @id @default(cuid())
+  jobId      String
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  name       String
+  rating     Float
+  reviews    Int
+  phone      String?
+  website    String?
+  address    String?
+  category   String?
+  attributes Json     @default("[]")
+  mapsUrl    String
+
+  createdAt  DateTime @default(now())
+
+  @@index([jobId])
+}
+
+model SystemLock {
+  id       String   @id
+  lockedAt DateTime
+  lockedBy String?
+}
