@@ -25,15 +25,13 @@ export default async function RootLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isLoginPage = pathname === "/login" || pathname.startsWith("/auth/");
+  const hideNavbar = pathname === "/login" || pathname.startsWith("/auth/");
 
   return (
     <html lang="en">
       <body className={`${inter.className} min-h-screen bg-slate-50`}>
-        {!isLoginPage && <Navbar userEmail={user?.email} />}
-        <main className={`container mx-auto px-4 py-8 ${isLoginPage ? "p-0" : ""}`}>
-          {children}
-        </main>
+        {!hideNavbar && <Navbar userEmail={user?.email} />}
+        <main>{children}</main>
       </body>
     </html>
   );

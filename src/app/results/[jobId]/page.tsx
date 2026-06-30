@@ -1,27 +1,63 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { Star, Phone, MapPin, Lock } from "lucide-react";
 import { JobStatusPanel } from "@/components/JobStatus";
 import { ProgressBar } from "@/components/ProgressBar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { POLL_INTERVAL_MS } from "@/lib/constants";
 import type { JobResponse } from "@/types/api";
+import type { Business } from "@/types/business";
 import { JobStatus } from "@/types/job";
 
-function formatDuration(ms: number | null): string {
-  if (!ms) return "—";
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const rem = seconds % 60;
-  return `${minutes}m ${rem}s`;
+const PREVIEW_COUNT = 3;
+
+function BusinessPreviewCard({ business }: { business: Business }) {
+  return (
+    <div className="rounded-xl border bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate font-semibold text-slate-900">{business.name}</h3>
+          {business.city && (
+            <p className="mt-0.5 flex items-center gap-1 text-sm text-slate-500">
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+              {business.city}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-600">
+          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+          {business.rating.toFixed(1)}
+          <span className="font-normal text-amber-500/70">({business.reviews})</span>
+        </div>
+      </div>
+      {business.phone && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-slate-600">
+          <Phone className="h-4 w-4 text-slate-400" />
+          {business.phone}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BlurredRow() {
+  return (
+    <div className="relative overflow-hidden rounded-xl border bg-white p-5">
+      <div className="space-y-2 blur-sm select-none">
+        <div className="h-5 w-48 rounded bg-slate-200" />
+        <div className="h-4 w-32 rounded bg-slate-100" />
+        <div className="h-4 w-40 rounded bg-slate-100" />
+      </div>
+    </div>
+  );
 }
 
 export default function ResultsPage() {
   const params = useParams<{ jobId: string }>();
-  const router = useRouter();
   const jobId = params.jobId;
 
   const [data, setData] = useState<JobResponse | null>(null);
@@ -38,114 +74,144 @@ export default function ResultsPage() {
           const body = await response.json();
           throw new Error(body.error ?? "Failed to fetch job");
         }
-
         const result = (await response.json()) as JobResponse;
         if (active) {
           setData(result);
           setError(null);
         }
       } catch (err) {
-        if (active) {
-          setError(err instanceof Error ? err.message : "Unknown error");
-        }
+        if (active) setError(err instanceof Error ? err.message : "Unknown error");
       }
     }
 
     fetchJob();
     const interval = setInterval(fetchJob, POLL_INTERVAL_MS);
-
     return () => {
       active = false;
       clearInterval(interval);
     };
   }, [jobId]);
 
-  useEffect(() => {
-    if (data?.job.status === JobStatus.COMPLETED) {
-      const timer = setTimeout(() => router.push("/dashboard"), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [data?.job.status, router]);
-
   if (error) {
     return (
-      <Card className="mx-auto max-w-2xl">
-        <CardContent className="pt-6 text-destructive">{error}</CardContent>
-      </Card>
+      <div className="mx-auto max-w-2xl py-12 text-center">
+        <p className="text-destructive">{error}</p>
+        <Link href="/" className="mt-4 inline-block text-sm text-primary hover:underline">
+          ← Back to search
+        </Link>
+      </div>
     );
   }
 
   if (!data) {
     return (
-      <Card className="mx-auto max-w-2xl">
-        <CardContent className="pt-6 text-muted-foreground">Loading discovery run...</CardContent>
-      </Card>
+      <div className="mx-auto max-w-2xl py-20 text-center text-muted-foreground">
+        Loading…
+      </div>
     );
   }
 
-  const { job, progress, discovery } = data;
-  const isFinished =
-    job.status === JobStatus.COMPLETED ||
-    job.status === JobStatus.FAILED ||
-    job.status === JobStatus.CANCELLED;
+  const { job, progress, discovery, businesses } = data;
+
+  const isRunning =
+    job.status === JobStatus.PENDING || job.status === JobStatus.RUNNING;
+  const isCompleted = job.status === JobStatus.COMPLETED;
+  const isFailed =
+    job.status === JobStatus.FAILED || job.status === JobStatus.CANCELLED;
+
+  const preview: Business[] = businesses.slice(0, PREVIEW_COUNT);
+  const hiddenCount = Math.max(0, businesses.length - PREVIEW_COUNT);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6 py-8">
+
+      {/* Status card */}
       <Card>
         <CardHeader>
           <CardTitle>
-            {job.status === JobStatus.COMPLETED
-              ? "Discovery Complete"
-              : job.status === JobStatus.FAILED
-                ? "Discovery Failed"
-                : "Discovering Leads..."}
+            {isCompleted
+              ? `${discovery.businessesFound} businesses found`
+              : isFailed
+                ? "Search failed"
+                : "Searching Google Maps…"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!isFinished && (
+          {isRunning && (
             <>
               <ProgressBar value={progress.progress} />
               <JobStatusPanel progress={progress} startedAt={startedAt} />
             </>
           )}
 
-          {job.status === JobStatus.FAILED && (
-            <p className="text-sm text-destructive">{job.errorMessage}</p>
+          {isCompleted && (
+            <p className="text-sm text-muted-foreground">
+              &quot;{job.searchTerm}&quot; in {job.location} — search complete.
+            </p>
           )}
 
-          {job.status === JobStatus.COMPLETED && (
-            <div className="space-y-3 text-sm">
-              <p className="text-muted-foreground">
-                Search for &quot;{job.searchTerm}&quot; in {job.location} finished successfully.
-              </p>
-              <div className="grid grid-cols-2 gap-3 rounded-lg border p-4">
-                <div>
-                  <p className="text-muted-foreground">Businesses Found</p>
-                  <p className="text-2xl font-semibold">{discovery.businessesFound}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">New Businesses</p>
-                  <p className="text-2xl font-semibold">{discovery.newBusinessesAdded}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Existing Updated</p>
-                  <p className="text-2xl font-semibold">{discovery.businessesUpdated}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Execution Time</p>
-                  <p className="text-2xl font-semibold">
-                    {formatDuration(discovery.executionTimeMs)}
-                  </p>
-                </div>
-              </div>
-              <p className="text-muted-foreground">Redirecting to dashboard...</p>
-              <Button className="w-full" onClick={() => router.push("/dashboard")}>
-                Go to Dashboard
-              </Button>
-            </div>
+          {isFailed && (
+            <p className="text-sm text-destructive">{job.errorMessage}</p>
           )}
         </CardContent>
       </Card>
+
+      {/* Preview results */}
+      {isCompleted && businesses.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-slate-800">
+            Preview — first {Math.min(PREVIEW_COUNT, businesses.length)} results
+          </h2>
+
+          <div className="space-y-3">
+            {preview.map((b) => (
+              <BusinessPreviewCard key={b.id} business={b} />
+            ))}
+          </div>
+
+          {/* Blurred locked rows */}
+          {hiddenCount > 0 && (
+            <div className="space-y-3">
+              {Array.from({ length: Math.min(hiddenCount, 3) }).map((_, i) => (
+                <BlurredRow key={i} />
+              ))}
+            </div>
+          )}
+
+          {/* CTA */}
+          <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-6 text-center">
+            <Lock className="mx-auto mb-3 h-8 w-8 text-primary" />
+            <h3 className="mb-1 text-xl font-bold text-slate-900">
+              {hiddenCount > 0
+                ? `+ ${hiddenCount} more businesses waiting`
+                : "Save and manage your leads"}
+            </h3>
+            <p className="mb-5 text-sm text-slate-500">
+              Sign in to access the full list with phone numbers, filter by
+              status, and track your outreach.
+            </p>
+            <Button asChild size="lg" className="w-full sm:w-auto gap-2">
+              <Link href="/login">
+                Access the full list — Sign in free
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isCompleted && businesses.length === 0 && (
+        <Card>
+          <CardContent className="pt-6 text-center text-muted-foreground">
+            No businesses matched your search. Try a different term or location.
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="text-center">
+        <Link href="/" className="text-sm text-slate-400 hover:text-slate-600 hover:underline">
+          ← New search
+        </Link>
+      </div>
     </div>
   );
 }
