@@ -57,15 +57,15 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-6xl space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Lead Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
-            Manage your growing business database across all collections.
+            Gestiona tu base de prospectos latinos organizados por búsqueda.
           </p>
         </div>
         <Button asChild>
-          <Link href="/search">
+          <Link href="/">
             <Plus className="mr-2 h-4 w-4" />
-            New Search
+            Nueva búsqueda
           </Link>
         </Button>
       </div>
@@ -73,37 +73,37 @@ export default function DashboardPage() {
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total Leads</CardDescription>
+            <CardDescription>Total prospectos</CardDescription>
             <CardTitle className="text-3xl">{summary.totalLeads}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Collections</CardDescription>
+            <CardDescription>Colecciones</CardDescription>
             <CardTitle className="text-3xl">{summary.collectionsCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>New Leads</CardDescription>
+            <CardDescription>Nuevos prospectos</CardDescription>
             <CardTitle className="text-3xl">{summary.newLeads}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Last Discovery</CardDescription>
+            <CardDescription>Último descubrimiento</CardDescription>
             <CardTitle className="text-lg">{formatDate(summary.lastDiscoveryAt)}</CardTitle>
           </CardHeader>
         </Card>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold">Collections</h2>
+        <h2 className="text-xl font-semibold">Mis colecciones</h2>
 
         {collections.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              No collections yet. Start a search to create your first lead collection.
+              Aún no tienes colecciones. Haz una búsqueda y guarda los resultados en tu cuenta.
             </CardContent>
           </Card>
         ) : (
@@ -121,15 +121,15 @@ export default function DashboardPage() {
                     </CardDescription>
                   </div>
                   <Button asChild variant="outline">
-                    <Link href={`/collections/${collection.id}`}>Open</Link>
+                    <Link href={`/collections/${collection.id}`}>Ver</Link>
                   </Button>
                 </CardHeader>
                 <CardContent className="flex gap-6 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Users className="h-4 w-4" />
-                    {collection.businessCount} leads
+                    {collection.businessCount} prospectos
                   </span>
-                  <span>Last search: {formatDate(collection.lastSearchAt)}</span>
+                  <span>Última búsqueda: {formatDate(collection.lastSearchAt)}</span>
                 </CardContent>
               </Card>
             ))}

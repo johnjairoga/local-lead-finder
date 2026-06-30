@@ -40,6 +40,10 @@ async function getHref(page: Page, selectors: string[]): Promise<string | null> 
 }
 
 async function extractReviewCount(page: Page, listing: ListingPreview): Promise<number> {
+  // Scope to [role="main"] — the Google Maps detail panel.
+  // Same scope used successfully by the attribute extractor.
+  const panel = page.locator('[role="main"]').first();
+
   const reviewSelectors = [
     'button[aria-label*="review"]',
     'button[aria-label*="reseña"]',
@@ -49,37 +53,32 @@ async function extractReviewCount(page: Page, listing: ListingPreview): Promise<
     'button[aria-label*="calificación"]',
     'span[aria-label*="review"]',
     'span[aria-label*="reseña"]',
-    'span[aria-label*="resena"]',
-    'span[aria-label*="opinion"]',
     'button[jsaction*="reviews"]',
   ];
 
-  for (const selector of reviewSelectors) {
-    const aria = await getAriaLabel(page, [selector]);
-    const parsed = parseReviewCount(aria);
-    if (parsed !== null) return parsed;
+  for (const sel of reviewSelectors) {
+    const el = panel.locator(sel).first();
+    if (await el.isVisible({ timeout: 1500 }).catch(() => false)) {
+      const aria = await el.getAttribute("aria-label");
+      const parsed = parseReviewCount(aria);
+      if (parsed !== null) return parsed;
 
-    const text = await getTextContent(page, [selector]);
-    const fromText = parseReviewCount(text);
-    if (fromText !== null) return fromText;
+      const text = await el.textContent();
+      const fromText = parseReviewCount(text);
+      if (fromText !== null) return fromText;
+    }
   }
 
-  const ratingBlock = page.locator("div.F7nice").first();
+  // Try the F7nice rating block within the detail panel
+  const ratingBlock = panel.locator("div.F7nice").first();
   if (await ratingBlock.isVisible({ timeout: 1500 }).catch(() => false)) {
     const blockText = await ratingBlock.textContent();
     const fromBlock = parseReviewCount(blockText, { allowBareParentheses: true });
     if (fromBlock !== null) return fromBlock;
   }
 
-  const headerText = await page
-    .locator("h1.DUwDvf, h1")
-    .first()
-    .locator("xpath=ancestor::div[1]")
-    .textContent()
-    .catch(() => null);
-  const fromHeader = parseReviewCount(headerText, { allowBareParentheses: true });
-  if (fromHeader !== null) return fromHeader;
-
+  // Fall back to the value from the scroll phase — now reliable since scroll.ts
+  // reads only from aria-label (no stale full-page text leakage).
   if (listing.reviews > 0) return listing.reviews;
 
   return 0;

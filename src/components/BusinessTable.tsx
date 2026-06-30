@@ -136,7 +136,7 @@ export function BusinessTable({ businesses, onStatusChange }: BusinessTableProps
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        {businesses.length} business{businesses.length !== 1 ? "es" : ""} — click column headers to sort
+        {businesses.length} negocio{businesses.length !== 1 ? "s" : ""} — haz clic en los encabezados para ordenar
       </p>
 
       <div className="rounded-lg border bg-white overflow-x-auto">
@@ -145,20 +145,20 @@ export function BusinessTable({ businesses, onStatusChange }: BusinessTableProps
             <TableRow>
               <TableHead className={sortableHeaderClass} onClick={() => toggleSort("name")}>
                 <span className="inline-flex items-center">
-                  Business Name
+                  Negocio
                   <SortIcon field="name" activeField={sortField} direction={sortDirection} />
                 </span>
               </TableHead>
-              <TableHead>Phone</TableHead>
+              <TableHead>Teléfono</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>City</TableHead>
-              <TableHead>Country</TableHead>
+              <TableHead>Ciudad</TableHead>
+              <TableHead>País</TableHead>
               <TableHead
                 className={cn(sortableHeaderClass, "text-right")}
                 onClick={() => toggleSort("rating")}
               >
                 <span className="inline-flex items-center justify-end w-full">
-                  Rating
+                  Nota
                   <SortIcon field="rating" activeField={sortField} direction={sortDirection} />
                 </span>
               </TableHead>
@@ -167,7 +167,7 @@ export function BusinessTable({ businesses, onStatusChange }: BusinessTableProps
                 onClick={() => toggleSort("reviews")}
               >
                 <span className="inline-flex items-center justify-end w-full">
-                  Reviews
+                  Reseñas
                   <SortIcon field="reviews" activeField={sortField} direction={sortDirection} />
                 </span>
               </TableHead>
@@ -176,7 +176,7 @@ export function BusinessTable({ businesses, onStatusChange }: BusinessTableProps
                 onClick={() => toggleSort("status")}
               >
                 <span className="inline-flex items-center">
-                  Contact Status
+                  Estado
                   <SortIcon field="status" activeField={sortField} direction={sortDirection} />
                 </span>
               </TableHead>
@@ -185,7 +185,7 @@ export function BusinessTable({ businesses, onStatusChange }: BusinessTableProps
                 onClick={() => toggleSort("createdAt")}
               >
                 <span className="inline-flex items-center">
-                  Date Added
+                  Agregado
                   <SortIcon field="createdAt" activeField={sortField} direction={sortDirection} />
                 </span>
               </TableHead>
@@ -194,25 +194,36 @@ export function BusinessTable({ businesses, onStatusChange }: BusinessTableProps
                 onClick={() => toggleSort("lastSeenAt")}
               >
                 <span className="inline-flex items-center">
-                  Last Seen
+                  Visto
                   <SortIcon field="lastSeenAt" activeField={sortField} direction={sortDirection} />
                 </span>
               </TableHead>
               <TableHead>Maps</TableHead>
-              <TableHead>Attributes</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.map((business) => (
               <TableRow key={business.id}>
-                <TableCell className="font-medium">{business.name}</TableCell>
-                <TableCell>{business.phone ?? "—"}</TableCell>
-                <TableCell>{business.email ?? "—"}</TableCell>
+                <TableCell className="font-medium max-w-[220px] truncate">{business.name}</TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {business.phone
+                    ? <a href={`tel:${business.phone}`} className="hover:text-primary hover:underline">{business.phone}</a>
+                    : "—"}
+                </TableCell>
+                <TableCell>
+                  {business.email
+                    ? <a href={`mailto:${business.email}`} className="hover:text-primary hover:underline">{business.email}</a>
+                    : "—"}
+                </TableCell>
                 <TableCell>{business.city ?? "—"}</TableCell>
                 <TableCell>{business.country ?? "—"}</TableCell>
-                <TableCell className="text-right">{business.rating.toFixed(1)}</TableCell>
-                <TableCell className="text-right">{business.reviews}</TableCell>
-                <TableCell className="min-w-[200px]">
+                <TableCell className="text-right font-semibold text-amber-600">
+                  ⭐ {business.rating.toFixed(1)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {business.reviews > 0 ? business.reviews.toLocaleString() : "—"}
+                </TableCell>
+                <TableCell className="min-w-[180px]">
                   <select
                     className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                     value={business.status}
@@ -229,29 +240,18 @@ export function BusinessTable({ businesses, onStatusChange }: BusinessTableProps
                     ))}
                   </select>
                 </TableCell>
-                <TableCell>{formatDate(business.createdAt)}</TableCell>
-                <TableCell>{formatDate(business.lastSeenAt)}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatDate(business.createdAt)}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatDate(business.lastSeenAt)}</TableCell>
                 <TableCell>
                   <a
                     href={business.googleMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    title="Ver en Maps"
                     className="inline-flex items-center text-primary hover:underline"
                   >
                     <ExternalLink className="h-4 w-4" />
                   </a>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1 max-w-[220px]">
-                    {business.businessAttributes.slice(0, 2).map((attr) => (
-                      <span
-                        key={attr.label}
-                        className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs"
-                      >
-                        {attr.label.length > 40 ? `${attr.label.slice(0, 40)}…` : attr.label}
-                      </span>
-                    ))}
-                  </div>
                 </TableCell>
               </TableRow>
             ))}

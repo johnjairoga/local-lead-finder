@@ -8,6 +8,23 @@ function mapAttributes(value: Prisma.JsonValue): BusinessAttribute[] {
   return Array.isArray(value) ? (value as unknown as BusinessAttribute[]) : [];
 }
 
+/**
+ * Extracts city name from a typical US address string.
+ * "123 Main St, Dallas, TX 75001, United States" → "Dallas"
+ */
+function extractCity(address: string | null | undefined): string | null {
+  if (!address?.trim()) return null;
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  // City is usually the second segment; if the address has only one part, skip
+  if (parts.length >= 2) {
+    const candidate = parts[1];
+    // Reject if it looks like a state abbreviation or ZIP code
+    if (/^\d+$/.test(candidate) || /^[A-Z]{2}$/.test(candidate)) return null;
+    return candidate;
+  }
+  return null;
+}
+
 function mapBusiness(record: {
   id: string;
   name: string;
@@ -56,6 +73,8 @@ export class BusinessRepository {
         where: { googleMapsUrl: scraped.mapsUrl },
       });
 
+      const city = extractCity(scraped.address);
+
       if (!existing) {
         const created = await prisma.business.create({
           data: {
@@ -63,6 +82,8 @@ export class BusinessRepository {
             googleMapsUrl: scraped.mapsUrl,
             phone: scraped.phone ?? null,
             email: null,
+            city,
+            country: "United States",
             rating: scraped.rating,
             reviews: scraped.reviews,
             businessAttributes: scraped.attributes as unknown as Prisma.InputJsonValue,
@@ -91,6 +112,8 @@ export class BusinessRepository {
           businessAttributes: scraped.attributes as unknown as Prisma.InputJsonValue,
           lastSeenAt: now,
           phone: existing.phone || scraped.phone || null,
+          city: existing.city || city,
+          country: existing.country || "United States",
         },
       });
 
@@ -130,6 +153,8 @@ export class BusinessRepository {
         where: { googleMapsUrl: scraped.mapsUrl },
       });
 
+      const city = extractCity(scraped.address);
+
       if (!existing) {
         const created = await prisma.business.create({
           data: {
@@ -137,6 +162,8 @@ export class BusinessRepository {
             googleMapsUrl: scraped.mapsUrl,
             phone: scraped.phone ?? null,
             email: null,
+            city,
+            country: "United States",
             rating: scraped.rating,
             reviews: scraped.reviews,
             businessAttributes: scraped.attributes as unknown as Prisma.InputJsonValue,
@@ -156,6 +183,8 @@ export class BusinessRepository {
             businessAttributes: scraped.attributes as unknown as Prisma.InputJsonValue,
             lastSeenAt: now,
             phone: existing.phone || scraped.phone || null,
+            city: existing.city || city,
+            country: existing.country || "United States",
           },
         });
         ids.push(existing.id);

@@ -91,7 +91,7 @@ export default function CollectionPage() {
   }
 
   if (!collection) {
-    return <p className="text-muted-foreground">Loading collection...</p>;
+    return <p className="text-muted-foreground">Cargando colección...</p>;
   }
 
   return (
@@ -100,12 +100,12 @@ export default function CollectionPage() {
         <Button asChild variant="ghost" size="sm">
           <Link href="/dashboard">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
+            Volver al Dashboard
           </Link>
         </Button>
         <Button onClick={runAgain} disabled={running}>
           <Play className="mr-2 h-4 w-4" />
-          {running ? "Starting..." : "Run Again"}
+          {running ? "Iniciando..." : "Buscar de nuevo"}
         </Button>
       </div>
 
@@ -119,24 +119,24 @@ export default function CollectionPage() {
       </Card>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Search History</h2>
+        <h2 className="text-lg font-semibold">Historial de búsquedas</h2>
         <div className="rounded-lg border bg-white overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
-                <th className="p-3">Date</th>
-                <th className="p-3">Found</th>
-                <th className="p-3">New</th>
-                <th className="p-3">Updated</th>
-                <th className="p-3">Duration</th>
-                <th className="p-3">Status</th>
+                <th className="p-3">Fecha</th>
+                <th className="p-3">Encontrados</th>
+                <th className="p-3">Nuevos</th>
+                <th className="p-3">Actualizados</th>
+                <th className="p-3">Duración</th>
+                <th className="p-3">Estado</th>
               </tr>
             </thead>
             <tbody>
               {collection.searchRuns.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-4 text-center text-muted-foreground">
-                    No search runs yet.
+                    Sin búsquedas aún.
                   </td>
                 </tr>
               ) : (
@@ -157,7 +157,7 @@ export default function CollectionPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Discovered Businesses</h2>
+        <h2 className="text-lg font-semibold">Prospectos descubiertos</h2>
         <BusinessTable
           businesses={businesses}
           onStatusChange={(businessId, status) => {

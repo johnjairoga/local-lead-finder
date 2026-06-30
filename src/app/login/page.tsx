@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 type Mode = "login" | "signup";
 
-export default function LoginPage() {
+function translateAuthError(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes("invalid login credentials") || m.includes("invalid email or password")) {
+    return "Correo o contraseña incorrectos. Verifica tus datos.";
+  }
+  if (m.includes("email not confirmed")) {
+    return "Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.";
+  }
+  if (m.includes("user already registered")) {
+    return "Este correo ya está registrado. Inicia sesión en su lugar.";
+  }
+  if (m.includes("invalid") && m.includes("email")) {
+    return "El correo ingresado no es válido. Usa un correo real (ej: nombre@gmail.com) ya que necesitamos enviar un mensaje de confirmación.";
+  }
+  if (m.includes("password") && m.includes("short")) {
+    return "La contraseña debe tener al menos 6 caracteres.";
+  }
+  if (m.includes("rate limit") || m.includes("too many") || m.includes("email rate limit")) {
+    return "Demasiados intentos de registro. Supabase limita los correos enviados por hora. Espera 10 minutos e intenta de nuevo, o usa otro correo electrónico.";
+  }
+  return msg;
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo") ?? "/dashboard";
   const supabase = createClient();
 
   const [mode, setMode] = useState<Mode>("login");
@@ -31,9 +56,9 @@ export default function LoginPage() {
     if (mode === "login") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        setError(error.message);
+        setError(translateAuthError(error.message));
       } else {
-        router.push("/dashboard");
+        router.push(returnTo);
         router.refresh();
       }
     } else {
@@ -43,9 +68,9 @@ export default function LoginPage() {
         options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
       if (error) {
-        setError(error.message);
+        setError(translateAuthError(error.message));
       } else {
-        setMessage("Revisa tu correo para confirmar tu cuenta y luego inicia sesión.");
+        setMessage("¡Listo! Revisa tu correo electrónico para confirmar tu cuenta y luego inicia sesión.");
         setMode("login");
       }
     }
@@ -82,12 +107,17 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="tu@correo.com"
+                  placeholder="tu@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={loading}
                 />
+                {mode === "signup" && (
+                  <p className="text-xs text-muted-foreground">
+                    Usa un correo real — te enviaremos un enlace de confirmación.
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Contraseña</Label>
@@ -148,5 +178,13 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

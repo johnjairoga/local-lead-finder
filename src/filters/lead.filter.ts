@@ -1,8 +1,8 @@
 import {
-  LATINO_OWNED_ATTRIBUTES,
   MAX_REVIEWS,
   MIN_RATING,
 } from "@/lib/constants";
+import { logger } from "@/lib/logger";
 import { deduplicateBusinesses } from "./deduplicator";
 import type { FilterCriteria, FilterResult } from "./types";
 import type { ScrapedBusiness } from "@/scraper/types";
@@ -12,7 +12,7 @@ const DEFAULT_CRITERIA: Required<
 > = {
   minRating: MIN_RATING,
   maxReviews: MAX_REVIEWS,
-  requiredAttributes: [...LATINO_OWNED_ATTRIBUTES],
+  requiredAttributes: [], // no attribute filter by default
 };
 
 /**
@@ -35,13 +35,39 @@ export class LeadFilter {
   }
 
   passesRatingAndReviews(business: ScrapedBusiness): boolean {
-    return business.rating >= this.minRating && business.reviews <= this.maxReviews;
+    const passesRating = business.rating >= this.minRating;
+    // reviews === 0 means "unknown" (couldn't be parsed from the page).
+    // Don't reject unknowns — let them through so we don't lose valid leads.
+    const passesReviews = business.reviews === 0 || business.reviews <= this.maxReviews;
+    return passesRating && passesReviews;
   }
 
+  rejectReason(business: ScrapedBusiness): string | null {
+    if (business.rating < this.minRating)
+      return `rating ${business.rating} < min ${this.minRating}`;
+    if (business.reviews > 0 && business.reviews > this.maxReviews)
+      return `reviews ${business.reviews} > max ${this.maxReviews}`;
+    if (!this.hasRequiredAttribute(business))
+      return `missing required attribute (${this.requiredAttributes.join(", ")})`;
+    if (!this.matchesKeywords(business))
+      return `keywords not matched`;
+    if (!this.matchesCategory(business))
+      return `category not matched`;
+    return null;
+  }
+
+  /**
+   * Core qualification gate: the business must self-identify as Latino/Hispanic-owned.
+   * If `requiredAttributes` is empty the check is skipped (no restriction).
+   * Matching is case-insensitive substring so partial labels still qualify.
+   */
   hasRequiredAttribute(business: ScrapedBusiness): boolean {
+    if (this.requiredAttributes.length === 0) return true;
+
+    // Build a single searchable string from all extracted attribute labels.
     const haystack = business.attributes
       .map((attr) => attr.label.toLowerCase().trim())
-      .join(" ");
+      .join(" | ");
 
     return this.requiredAttributes.some((phrase) =>
       haystack.includes(phrase.toLowerCase())
@@ -88,9 +114,17 @@ export class LeadFilter {
     const rejected: ScrapedBusiness[] = [];
 
     for (const business of unique) {
-      if (this.isQualified(business)) {
+      const reason = this.rejectReason(business);
+      if (reason === null) {
         qualified.push(business);
       } else {
+        logger.debug("Business rejected by filter", {
+          module: "filter",
+          name: business.name,
+          rating: business.rating,
+          reviews: business.reviews,
+          reason,
+        });
         rejected.push(business);
       }
     }

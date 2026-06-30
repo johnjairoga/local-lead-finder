@@ -35,19 +35,17 @@ export async function scrollAndCollectListings(
         seen.add(key);
 
         const ariaLabel = (await card.getAttribute("aria-label")) ?? "";
-        const cardText = (await card.textContent()) ?? "";
 
-        const ratingMatch = ariaLabel.match(/(\d+(?:\.\d+)?)\s+(?:stars?|estrellas?)/i)
-          ?? cardText.match(/(\d+(?:\.\d+)?)\s*(?:stars?|estrellas?)/i);
+        // Use aria-label only (not full cardText) to avoid picking up stray
+        // numbers from sibling elements that leak into textContent().
+        const ratingMatch = ariaLabel.match(/(\d+(?:\.\d+)?)\s+(?:stars?|estrellas?)/i);
 
         const reviewsFromAria = parseReviewCount(ariaLabel);
-        const reviewsFromCard = parseReviewCount(cardText, { allowBareParentheses: true });
         const reviewsMatch = ariaLabel.match(/(\d[\d,]*)\s+(?:reviews?|reseñas?|resenas?|opiniones?)/i);
 
         const rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
         const reviews =
           reviewsFromAria ??
-          reviewsFromCard ??
           (reviewsMatch ? parseInt(reviewsMatch[1].replace(/,/g, ""), 10) : 0);
         listings.push({
           name: name.trim(),
