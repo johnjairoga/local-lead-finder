@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Search, Star, Phone } from "lucide-react";
+import Link from "next/link";
+import { MapPin, Search, Star, Phone, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,11 +15,13 @@ export default function HomePage() {
   const [maxResults, setMaxResults] = useState(50);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsLogin, setNeedsLogin] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setNeedsLogin(false);
 
     try {
       const response = await fetch("/api/search", {
@@ -29,13 +32,19 @@ export default function HomePage() {
 
       const data = await response.json();
 
+      if (response.status === 401) {
+        setNeedsLogin(true);
+        setLoading(false);
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(data.error ?? "Failed to start search");
+        throw new Error(data.error ?? "Error al iniciar la búsqueda");
       }
 
       router.push(`/results/${data.jobId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : "Error desconocido");
       setLoading(false);
     }
   }
@@ -120,15 +129,31 @@ export default function HomePage() {
               </p>
             )}
 
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full gap-2 text-base"
-              disabled={loading}
-            >
-              <Search className="h-4 w-4" />
-              {loading ? "Iniciando búsqueda…" : "Buscar prospectos ahora"}
-            </Button>
+            {needsLogin && (
+              <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 text-center">
+                <p className="mb-3 text-sm font-medium text-slate-700">
+                  Inicia sesión para comenzar tu búsqueda — es gratis.
+                </p>
+                <Button asChild size="sm" className="gap-2">
+                  <Link href="/login">
+                    <LogIn className="h-4 w-4" />
+                    Iniciar sesión
+                  </Link>
+                </Button>
+              </div>
+            )}
+
+            {!needsLogin && (
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full gap-2 text-base"
+                disabled={loading}
+              >
+                <Search className="h-4 w-4" />
+                {loading ? "Iniciando búsqueda…" : "Buscar prospectos ahora"}
+              </Button>
+            )}
           </form>
         </div>
       </section>

@@ -2,10 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_SEARCH_FILTERS } from "@/lib/constants";
 import { container } from "@/lib/di/container";
 import { AppError } from "@/lib/errors";
+import { createClient } from "@/lib/supabase/server";
 import type { CreateSearchRequest } from "@/types/api";
 
 export async function POST(request: NextRequest) {
   try {
+    // Require an authenticated session to start a search
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "auth_required", message: "Debes iniciar sesión para realizar una búsqueda." },
+        { status: 401 }
+      );
+    }
+
     const body = (await request.json()) as CreateSearchRequest;
 
     const collection = await container.collectionService.findOrCreate({

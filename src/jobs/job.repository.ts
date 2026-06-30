@@ -211,33 +211,29 @@ export class JobRepository {
     const claimed: JobRecord[] = [];
 
     for (let i = 0; i < slots; i++) {
-      const job = await prisma.$transaction(async (tx) => {
-        const pending = await tx.searchRun.findFirst({
-          where: { status: "PENDING" },
-          orderBy: { createdAt: "asc" },
-        });
-
-        if (!pending) return null;
-
-        const updated = await tx.searchRun.updateMany({
-          where: { id: pending.id, status: "PENDING" },
-          data: {
-            status: "RUNNING",
-            startedAt: new Date(),
-            errorMessage: null,
-          },
-        });
-
-        if (updated.count === 0) return null;
-
-        return tx.searchRun.findUnique({
-          where: { id: pending.id },
-          include: runInclude,
-        });
+      // Find a pending job then optimistically claim it — no interactive
+      // transaction so it works with PgBouncer in transaction-pooling mode.
+      const pending = await prisma.searchRun.findFirst({
+        where: { status: "PENDING" },
+        orderBy: { createdAt: "asc" },
+        include: runInclude,
       });
 
-      if (!job) break;
-      claimed.push(mapSearchRun(job));
+      if (!pending) break;
+
+      const updated = await prisma.searchRun.updateMany({
+        where: { id: pending.id, status: "PENDING" },
+        data: { status: "RUNNING", startedAt: new Date(), errorMessage: null },
+      });
+
+      if (updated.count === 0) break; // Another worker claimed it first
+
+      const job = await prisma.searchRun.findUnique({
+        where: { id: pending.id },
+        include: runInclude,
+      });
+
+      if (job) claimed.push(mapSearchRun(job));
     }
 
     return claimed;
@@ -247,23 +243,24 @@ export class JobRepository {
     const now = new Date();
     const cutoff = new Date(now.getTime() - lockTtlMs);
 
-    return prisma.$transaction(async (tx) => {
-      const existing = await tx.systemLock.findUnique({
-        where: { id: "JOB_QUEUE" },
-      });
+    // Non-transactional lock — safe for single-instance deployments and
+    // compatible with PgBouncer transaction pooling.
+    const existing = await prisma.systemLock.findUnique({
+      where: { id: "JOB_QUEUE" },
+    });
 
-      if (existing && existing.lockedAt > cutoff) {
-        return false;
-      }
+    if (existing && existing.lockedAt > cutoff) return false;
 
-      await tx.systemLock.upsert({
+    try {
+      await prisma.systemLock.upsert({
         where: { id: "JOB_QUEUE" },
         create: { id: "JOB_QUEUE", lockedAt: now, lockedBy },
         update: { lockedAt: now, lockedBy },
       });
-
       return true;
-    });
+    } catch {
+      return false;
+    }
   }
 
   async releaseQueueLock(): Promise<void> {
