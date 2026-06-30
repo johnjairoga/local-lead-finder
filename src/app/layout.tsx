@@ -8,8 +8,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Local Lead Finder AI",
-  description: "Discover qualified local businesses from Google Maps",
+  title: "LatamEasy",
+  description: "Consigue más clientes latinos en Estados Unidos.",
 };
 
 export default async function RootLayout({

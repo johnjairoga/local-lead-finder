@@ -25,7 +25,7 @@ export function Navbar({ userEmail }: NavbarProps) {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2 font-semibold text-slate-900">
           <MapPin className="h-5 w-5 text-primary" />
-          Local Lead Finder AI
+          LatamEasy
         </Link>
 
         <nav className="flex items-center gap-4 text-sm">

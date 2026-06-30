@@ -1,4 +1,4 @@
-# Deployment Checklist — Local Lead Finder AI
+# Deployment Checklist — LatamEasy
 
 Use this file every time you deploy to a new environment (staging, production, VPS, Railway, etc.).
 Check off each item before going live.

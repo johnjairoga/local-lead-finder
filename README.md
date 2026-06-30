@@ -1,4 +1,4 @@
-# Local Lead Finder AI
+# LatamEasy
 
 Production-ready MVP for discovering qualified local businesses from Google Maps.
 
