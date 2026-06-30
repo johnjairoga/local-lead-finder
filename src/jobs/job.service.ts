@@ -1,20 +1,22 @@
 import { ValidationError } from "@/lib/errors";
 import { STUCK_JOB_MINUTES } from "@/lib/constants";
-import { logger } from "@/lib/logger";import { ExportService } from "@/services/export.service";
-import { LeadService } from "@/services/lead.service";
-import type { CreateJobInput, JobProgress, JobRecord } from "@/types/job";
-import type { Lead } from "@/types/lead";
+import { logger } from "@/lib/logger";
+import { ExportService } from "@/services/export.service";
+import { BusinessService, CollectionService } from "@/services/business.service";
+import type { CreateJobInput, DiscoverySummary, JobProgress, JobRecord } from "@/types/job";
+import { JobStatus } from "@/types/job";
+import type { Business } from "@/types/business";
 import { JobQueue } from "./job.queue";
 import { JobRepository } from "./job.repository";
 
 /**
- * Layer 3 — Job orchestration service.
- * Manages job lifecycle, progress, and coordinates exports.
+ * Layer 3 — Job orchestration service (Search Runs).
  */
 export class JobService {
   constructor(
     private readonly jobRepository: JobRepository,
-    private readonly leadService: LeadService,
+    private readonly businessService: BusinessService,
+    private readonly collectionService: CollectionService,
     private readonly exportService: ExportService,
     private readonly jobQueue: JobQueue
   ) {}
@@ -29,32 +31,46 @@ export class JobService {
     if (!input.maxResults || input.maxResults < 1 || input.maxResults > 200) {
       throw new ValidationError("Maximum results must be between 1 and 200");
     }
+    if (!input.collectionId) {
+      throw new ValidationError("Collection is required");
+    }
   }
 
   async createAndEnqueue(input: CreateJobInput): Promise<JobRecord> {
     this.validateSearchInput(input);
 
     const job = await this.jobRepository.create(input);
-    logger.info("Job created", { jobId: job.id });
+    logger.info("Search run created", { jobId: job.id, collectionId: job.collectionId });
 
     await this.jobQueue.enqueue(job);
     return job;
   }
 
-  async getJobWithLeads(jobId: string): Promise<{
+  async getJobWithDiscovery(jobId: string): Promise<{
     job: JobRecord;
     progress: JobProgress;
-    leads: Lead[];
+    discovery: DiscoverySummary;
+    businesses: Business[];
   }> {
     const job = await this.jobRepository.findByIdOrThrow(jobId);
-    const leads = await this.leadService.getByJobId(jobId);
     const progress = this.jobRepository.toProgress(job);
+    const discovery: DiscoverySummary = {
+      businessesFound: job.businessesFound,
+      newBusinessesAdded: job.newBusinessesAdded,
+      businessesUpdated: job.businessesUpdated,
+      executionTimeMs: job.executionTimeMs,
+    };
 
-    return { job, progress, leads };
+    const businesses =
+      job.collectionId && job.status === JobStatus.COMPLETED
+        ? await this.businessService.getByCollectionId(job.collectionId)
+        : [];
+
+    return { job, progress, discovery, businesses };
   }
 
   async markRunning(jobId: string): Promise<JobRecord> {
-    return this.jobRepository.updateStatus(jobId, "RUNNING", {
+    return this.jobRepository.updateStatus(jobId, JobStatus.RUNNING, {
       startedAt: new Date(),
     });
   }
@@ -66,6 +82,10 @@ export class JobService {
       processedCount?: number;
       totalCount?: number;
       qualifiedCount?: number;
+      businessesFound?: number;
+      newBusinessesAdded?: number;
+      businessesUpdated?: number;
+      executionTimeMs?: number;
     }
   ): Promise<JobRecord> {
     const processed = data.processedCount ?? 0;
@@ -78,22 +98,42 @@ export class JobService {
     });
   }
 
-  async markCompleted(jobId: string): Promise<JobRecord> {
-    const job = await this.jobRepository.updateStatus(jobId, "COMPLETED", {
+  async markCompleted(
+    jobId: string,
+    discovery: DiscoverySummary,
+    businesses: Business[]
+  ): Promise<JobRecord> {
+    const job = await this.jobRepository.findByIdOrThrow(jobId);
+    const executionTimeMs =
+      discovery.executionTimeMs ??
+      (job.startedAt ? Date.now() - job.startedAt.getTime() : null);
+
+    const completed = await this.jobRepository.updateProgress(jobId, {
+      businessesFound: discovery.businessesFound,
+      newBusinessesAdded: discovery.newBusinessesAdded,
+      businessesUpdated: discovery.businessesUpdated,
+      executionTimeMs: executionTimeMs ?? undefined,
+    });
+
+    const finalJob = await this.jobRepository.updateStatus(completed.id, JobStatus.COMPLETED, {
       completedAt: new Date(),
       errorMessage: null,
     });
 
-    const leads = await this.leadService.getByJobId(jobId);
-    await this.exportService.exportJob(job, leads);
+    await this.exportService.exportSearchRun(finalJob, businesses, discovery);
 
-    logger.info("Job completed", { jobId, leadCount: leads.length });
-    return job;
+    logger.info("Search run completed", {
+      jobId,
+      ...discovery,
+      executionTimeMs,
+    });
+
+    return finalJob;
   }
 
   async markFailed(jobId: string, errorMessage: string): Promise<JobRecord> {
-    logger.error("Job failed", { jobId, errorMessage });
-    return this.jobRepository.updateStatus(jobId, "FAILED", {
+    logger.error("Search run failed", { jobId, errorMessage });
+    return this.jobRepository.updateStatus(jobId, JobStatus.FAILED, {
       completedAt: new Date(),
       errorMessage,
     });

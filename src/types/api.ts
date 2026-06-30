@@ -1,21 +1,32 @@
 import type { JobProgress, JobRecord, SearchParams } from "./job";
-import type { Lead } from "./lead";
+import type { Business } from "./business";
+import type { DiscoverySummary } from "./job";
 
 export interface CreateSearchRequest {
   searchTerm: string;
   location: string;
   maxResults: number;
   provider?: string;
+  collectionName?: string;
 }
 
 export interface CreateSearchResponse {
   jobId: string;
+  collectionId: string;
 }
 
 export interface JobResponse {
   job: JobRecord;
   progress: JobProgress;
-  leads: Lead[];
+  discovery: DiscoverySummary;
+  businesses: Business[];
+}
+
+export interface DashboardSummary {
+  totalLeads: number;
+  collectionsCount: number;
+  newLeads: number;
+  lastDiscoveryAt: Date | null;
 }
 
 export interface ApiErrorResponse {
@@ -23,4 +34,4 @@ export interface ApiErrorResponse {
   code?: string;
 }
 
-export type { SearchParams, JobRecord, JobProgress, Lead };
+export type { SearchParams, JobRecord, JobProgress, Business };

@@ -1,3 +1,5 @@
+import type { SearchFilters } from "@/types/collection";
+
 export const MIN_RATING = 4;
 export const MAX_REVIEWS = 100;
 
@@ -30,3 +32,11 @@ export const QUEUE_LOCK_TTL_MS = Number(process.env.QUEUE_LOCK_TTL_MS ?? 10000);
 
 export const SCRAPER_RETRY_ATTEMPTS = 3;
 export const SCRAPER_RETRY_DELAY_MS = 1000;
+
+export const DEFAULT_SEARCH_FILTERS: SearchFilters = {
+  minRating: MIN_RATING,
+  maxReviews: MAX_REVIEWS,
+  requiredAttributes: [...LATINO_OWNED_ATTRIBUTES],
+  provider: DEFAULT_PROVIDER,
+  maxResults: 50,
+};

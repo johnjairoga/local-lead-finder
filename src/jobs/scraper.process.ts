@@ -1,9 +1,26 @@
 import { spawn, type ChildProcess } from "child_process";
+import os from "os";
 import path from "path";
 import { logger } from "@/lib/logger";
+import { JobStatus } from "@/types/job";
 import { JobRepository } from "./job.repository";
 
 export type WorkerExitHandler = (jobId: string, code: number | null) => Promise<void>;
+
+/** Avoid IDE/sandbox temp paths; Playwright browsers live in the user profile on Windows. */
+function resolvePlaywrightBrowsersPath(): string | undefined {
+  const configured = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  if (configured && !configured.includes("cursor-sandbox-cache")) {
+    return configured;
+  }
+
+  if (process.platform === "win32") {
+    const home = process.env.USERPROFILE ?? os.homedir();
+    return path.join(home, "AppData", "Local", "ms-playwright");
+  }
+
+  return configured;
+}
 
 /**
  * Spawns the scraper worker process (decoupled from API routes).
@@ -24,10 +41,16 @@ export class ScraperProcess {
     let child: ChildProcess;
 
     try {
+      const playwrightBrowsersPath = resolvePlaywrightBrowsersPath();
       child = spawn(process.execPath, [tsxPath, scriptPath, jobId], {
         detached: false,
         stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env },
+        env: {
+          ...process.env,
+          ...(playwrightBrowsersPath
+            ? { PLAYWRIGHT_BROWSERS_PATH: playwrightBrowsersPath }
+            : {}),
+        },
         windowsHide: true,
       });
     } catch (error) {
@@ -58,8 +81,8 @@ export class ScraperProcess {
     logger.error("Failed to spawn scraper worker", { jobId, error: message });
 
     const job = await this.jobRepository.findById(jobId);
-    if (job?.status === "RUNNING") {
-      await this.jobRepository.updateStatus(jobId, "FAILED", {
+    if (job?.status === JobStatus.RUNNING) {
+      await this.jobRepository.updateStatus(jobId, JobStatus.FAILED, {
         errorMessage: `Failed to spawn worker: ${message}`,
         completedAt: new Date(),
       });

@@ -1,7 +1,11 @@
 /**
  * Parse review count from Google Maps text (EN + ES).
+ * Use `allowBareParentheses` only on short rating-line snippets, not full page text.
  */
-export function parseReviewCount(text: string | null | undefined): number | null {
+export function parseReviewCount(
+  text: string | null | undefined,
+  options?: { allowBareParentheses?: boolean }
+): number | null {
   if (!text?.trim()) return null;
 
   const normalized = text.replace(/\u00a0/g, " ").trim();
@@ -9,7 +13,6 @@ export function parseReviewCount(text: string | null | undefined): number | null
   const patterns = [
     /(\d[\d,.]*)\s*(?:reviews?|reseñas?|resenas?|opiniones?|calificaciones?)/i,
     /(?:reviews?|reseñas?|resenas?|opiniones?|calificaciones?)[:\s]*(\d[\d,.]*)/i,
-    /\((\d[\d,.]*)\)/,
     /(\d[\d,.]+)\s*(?:reseña|opinion)/i,
   ];
 
@@ -17,6 +20,14 @@ export function parseReviewCount(text: string | null | undefined): number | null
     const match = normalized.match(pattern);
     if (match?.[1]) {
       const value = parseInt(match[1].replace(/[,.]/g, ""), 10);
+      if (!Number.isNaN(value)) return value;
+    }
+  }
+
+  if (options?.allowBareParentheses && normalized.length <= 120) {
+    const parenMatch = normalized.match(/\((\d[\d,.]*)\)/);
+    if (parenMatch?.[1]) {
+      const value = parseInt(parenMatch[1].replace(/[,.]/g, ""), 10);
       if (!Number.isNaN(value)) return value;
     }
   }

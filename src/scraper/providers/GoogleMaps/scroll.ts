@@ -41,7 +41,7 @@ export async function scrollAndCollectListings(
           ?? cardText.match(/(\d+(?:\.\d+)?)\s*(?:stars?|estrellas?)/i);
 
         const reviewsFromAria = parseReviewCount(ariaLabel);
-        const reviewsFromCard = parseReviewCount(cardText);
+        const reviewsFromCard = parseReviewCount(cardText, { allowBareParentheses: true });
         const reviewsMatch = ariaLabel.match(/(\d[\d,]*)\s+(?:reviews?|reseñas?|resenas?|opiniones?)/i);
 
         const rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;

@@ -67,15 +67,22 @@ async function extractReviewCount(page: Page, listing: ListingPreview): Promise<
   const ratingBlock = page.locator("div.F7nice").first();
   if (await ratingBlock.isVisible({ timeout: 1500 }).catch(() => false)) {
     const blockText = await ratingBlock.textContent();
-    const fromBlock = parseReviewCount(blockText);
+    const fromBlock = parseReviewCount(blockText, { allowBareParentheses: true });
     if (fromBlock !== null) return fromBlock;
   }
 
-  const mainText = await page.locator('[role="main"]').textContent().catch(() => null);
-  const fromMain = parseReviewCount(mainText);
-  if (fromMain !== null) return fromMain;
+  const headerText = await page
+    .locator("h1.DUwDvf, h1")
+    .first()
+    .locator("xpath=ancestor::div[1]")
+    .textContent()
+    .catch(() => null);
+  const fromHeader = parseReviewCount(headerText, { allowBareParentheses: true });
+  if (fromHeader !== null) return fromHeader;
 
-  return listing.reviews;
+  if (listing.reviews > 0) return listing.reviews;
+
+  return 0;
 }
 
 export async function openAndExtractBusiness(

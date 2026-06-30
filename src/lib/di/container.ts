@@ -2,18 +2,20 @@ import { JobRepository } from "@/jobs/job.repository";
 import { JobQueue } from "@/jobs/job.queue";
 import { JobService } from "@/jobs/job.service";
 import { ScraperProcess } from "@/jobs/scraper.process";
-import { ExportService, LeadService } from "@/services";
+import { BusinessService, CollectionService, ExportService } from "@/services";
+import { JobStatus } from "@/types/job";
 
 const jobRepository = new JobRepository();
-const leadService = new LeadService();
+const businessService = new BusinessService();
+const collectionService = new CollectionService();
 const exportService = new ExportService();
 const jobQueue = new JobQueue(jobRepository);
 
 const scraperProcess = new ScraperProcess(jobRepository, async (jobId, code) => {
   if (code !== 0) {
     const job = await jobRepository.findById(jobId);
-    if (job?.status === "RUNNING") {
-      await jobRepository.updateStatus(jobId, "FAILED", {
+    if (job?.status === JobStatus.RUNNING) {
+      await jobRepository.updateStatus(jobId, JobStatus.FAILED, {
         errorMessage:
           code === null
             ? "Worker was terminated unexpectedly"
@@ -28,11 +30,18 @@ const scraperProcess = new ScraperProcess(jobRepository, async (jobId, code) => 
 
 jobQueue.setScraperProcess(scraperProcess);
 
-const jobService = new JobService(jobRepository, leadService, exportService, jobQueue);
+const jobService = new JobService(
+  jobRepository,
+  businessService,
+  collectionService,
+  exportService,
+  jobQueue
+);
 
 export const container = {
   jobRepository,
-  leadService,
+  businessService,
+  collectionService,
   exportService,
   scraperProcess,
   jobQueue,

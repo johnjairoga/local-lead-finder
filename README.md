@@ -65,10 +65,35 @@ prisma/                   # Database schema
 - **Spawn exit tracking** — failed workers mark job `FAILED` and re-dispatch queue
 - **Keep `MAX_CONCURRENT_JOBS=1`** on Railway (Playwright memory)
 
-Run migration after pull:
+Run migration after pull (uses Supabase `DIRECT_URL`):
 
 ```bash
 npx prisma migrate deploy
+```
+
+## Database (Supabase)
+
+This project uses **Supabase PostgreSQL** as the only database. Local PostgreSQL is not used.
+
+| Variable | Source | Purpose |
+|----------|--------|---------|
+| `DATABASE_URL` | Supabase → Database → **Transaction** pooler (6543) | App runtime (Prisma) |
+| `DIRECT_URL` | Supabase → Database → **Direct** (5432) | Migrations |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → API | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → API | Public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → API | Server-side key |
+
+```bash
+cp .env.example .env
+# Fill in Supabase credentials, then:
+npm run db:migrate
+npm run dev
+```
+
+Windows quick start:
+
+```powershell
+npm run start:supabase
 ```
 
 ## Flow
@@ -97,13 +122,16 @@ npx prisma migrate deploy
 
 ```bash
 cp .env.example .env
+# Add Supabase credentials to .env
 npm install
-npx prisma migrate dev
+npm run db:migrate
 npx playwright install chromium
 npm run dev
 ```
 
 ## Docker
+
+Requires `.env` with Supabase credentials (connects to cloud DB, no local Postgres):
 
 ```bash
 docker compose up --build

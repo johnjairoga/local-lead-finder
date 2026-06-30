@@ -1,4 +1,4 @@
-import type { JobStatus as PrismaJobStatus } from "@prisma/client";
+import type { SearchRunStatus as PrismaSearchRunStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { JobNotFoundError } from "@/lib/errors";
 import type {
@@ -9,62 +9,105 @@ import type {
   ScraperProviderName,
 } from "@/types/job";
 
-function mapJob(record: {
-  id: string;
-  status: PrismaJobStatus;
-  searchTerm: string;
-  location: string;
-  maxResults: number;
-  provider: string;
-  processedCount: number;
-  totalCount: number;
-  qualifiedCount: number;
-  progress: number;
-  currentBusiness: string | null;
-  errorMessage: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  startedAt: Date | null;
-  completedAt: Date | null;
-}): JobRecord {
+type RunMetadata = {
+  processedCount?: number;
+  totalCount?: number;
+  qualifiedCount?: number;
+  progress?: number;
+  currentBusiness?: string | null;
+  maxResults?: number;
+  provider?: string;
+};
+
+function parseMetadata(value: unknown): RunMetadata {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as RunMetadata;
+}
+
+function mapSearchRun(
+  record: {
+    id: string;
+    status: PrismaSearchRunStatus;
+    collectionId: string;
+    startedAt: Date | null;
+    finishedAt: Date | null;
+    businessesFound: number;
+    newBusinesses: number;
+    updatedBusinesses: number;
+    executionTime: number | null;
+    errorMessage: string | null;
+    metadata: unknown;
+    createdAt: Date;
+    updatedAt: Date;
+    collection: {
+      searchTerm: string;
+      location: string;
+      maxReviews: number;
+    };
+  }
+): JobRecord {
+  const meta = parseMetadata(record.metadata);
+
   return {
     id: record.id,
     status: record.status as JobStatus,
-    searchTerm: record.searchTerm,
-    location: record.location,
-    maxResults: record.maxResults,
-    provider: record.provider as ScraperProviderName,
-    processedCount: record.processedCount,
-    totalCount: record.totalCount,
-    qualifiedCount: record.qualifiedCount,
-    progress: record.progress,
-    currentBusiness: record.currentBusiness,
+    collectionId: record.collectionId,
+    searchTerm: record.collection.searchTerm,
+    location: record.collection.location,
+    maxResults: meta.maxResults ?? 50,
+    provider: (meta.provider as ScraperProviderName) ?? "google-maps",
+    processedCount: meta.processedCount ?? 0,
+    totalCount: meta.totalCount ?? 0,
+    qualifiedCount: meta.qualifiedCount ?? 0,
+    businessesFound: record.businessesFound,
+    newBusinessesAdded: record.newBusinesses,
+    businessesUpdated: record.updatedBusinesses,
+    executionTimeMs: record.executionTime,
+    progress: meta.progress ?? 0,
+    currentBusiness: meta.currentBusiness ?? null,
     errorMessage: record.errorMessage,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     startedAt: record.startedAt,
-    completedAt: record.completedAt,
+    completedAt: record.finishedAt,
   };
 }
 
+const runInclude = {
+  collection: {
+    select: { searchTerm: true, location: true, maxReviews: true },
+  },
+} as const;
+
 export class JobRepository {
   async create(input: CreateJobInput): Promise<JobRecord> {
-    const record = await prisma.job.create({
+    const metadata: RunMetadata = {
+      maxResults: input.maxResults,
+      provider: input.provider ?? "google-maps",
+      processedCount: 0,
+      totalCount: 0,
+      qualifiedCount: 0,
+      progress: 0,
+    };
+
+    const record = await prisma.searchRun.create({
       data: {
-        searchTerm: input.searchTerm,
-        location: input.location,
-        maxResults: input.maxResults,
-        provider: input.provider ?? "google-maps",
+        collectionId: input.collectionId,
         status: "PENDING",
+        metadata,
       },
+      include: runInclude,
     });
 
-    return mapJob(record);
+    return mapSearchRun(record);
   }
 
   async findById(id: string): Promise<JobRecord | null> {
-    const record = await prisma.job.findUnique({ where: { id } });
-    return record ? mapJob(record) : null;
+    const record = await prisma.searchRun.findUnique({
+      where: { id },
+      include: runInclude,
+    });
+    return record ? mapSearchRun(record) : null;
   }
 
   async findByIdOrThrow(id: string): Promise<JobRecord> {
@@ -82,17 +125,18 @@ export class JobRepository {
       completedAt?: Date;
     }
   ): Promise<JobRecord> {
-    const record = await prisma.job.update({
+    const record = await prisma.searchRun.update({
       where: { id },
       data: {
-        status: status as PrismaJobStatus,
+        status: status as PrismaSearchRunStatus,
         errorMessage: extra?.errorMessage,
         startedAt: extra?.startedAt,
-        completedAt: extra?.completedAt,
+        finishedAt: extra?.completedAt,
       },
+      include: runInclude,
     });
 
-    return mapJob(record);
+    return mapSearchRun(record);
   }
 
   async updateProgress(
@@ -102,25 +146,46 @@ export class JobRepository {
       processedCount?: number;
       totalCount?: number;
       qualifiedCount?: number;
+      businessesFound?: number;
+      newBusinessesAdded?: number;
+      businessesUpdated?: number;
+      executionTimeMs?: number;
       progress?: number;
     }
   ): Promise<JobRecord> {
-    const record = await prisma.job.update({
+    const existing = await prisma.searchRun.findUnique({ where: { id } });
+    const meta = parseMetadata(existing?.metadata);
+
+    const record = await prisma.searchRun.update({
       where: { id },
-      data,
+      data: {
+        businessesFound: data.businessesFound,
+        newBusinesses: data.newBusinessesAdded,
+        updatedBusinesses: data.businessesUpdated,
+        executionTime: data.executionTimeMs,
+        metadata: {
+          ...meta,
+          currentBusiness: data.currentBusiness ?? meta.currentBusiness,
+          processedCount: data.processedCount ?? meta.processedCount,
+          totalCount: data.totalCount ?? meta.totalCount,
+          qualifiedCount: data.qualifiedCount ?? meta.qualifiedCount,
+          progress: data.progress ?? meta.progress,
+        },
+      },
+      include: runInclude,
     });
 
-    return mapJob(record);
+    return mapSearchRun(record);
   }
 
   async countRunningJobs(): Promise<number> {
-    return prisma.job.count({ where: { status: "RUNNING" } });
+    return prisma.searchRun.count({ where: { status: "RUNNING" } });
   }
 
   async recoverStuckJobs(stuckMinutes: number): Promise<number> {
     const cutoff = new Date(Date.now() - stuckMinutes * 60 * 1000);
 
-    const result = await prisma.job.updateMany({
+    const result = await prisma.searchRun.updateMany({
       where: {
         status: "RUNNING",
         OR: [
@@ -138,9 +203,6 @@ export class JobRepository {
     return result.count;
   }
 
-  /**
-   * Atomically claims PENDING jobs one at a time to prevent duplicate dispatch.
-   */
   async claimNextJobs(maxConcurrent: number): Promise<JobRecord[]> {
     const runningCount = await this.countRunningJobs();
     const slots = maxConcurrent - runningCount;
@@ -150,14 +212,14 @@ export class JobRepository {
 
     for (let i = 0; i < slots; i++) {
       const job = await prisma.$transaction(async (tx) => {
-        const pending = await tx.job.findFirst({
+        const pending = await tx.searchRun.findFirst({
           where: { status: "PENDING" },
           orderBy: { createdAt: "asc" },
         });
 
         if (!pending) return null;
 
-        const updated = await tx.job.updateMany({
+        const updated = await tx.searchRun.updateMany({
           where: { id: pending.id, status: "PENDING" },
           data: {
             status: "RUNNING",
@@ -168,11 +230,14 @@ export class JobRepository {
 
         if (updated.count === 0) return null;
 
-        return tx.job.findUnique({ where: { id: pending.id } });
+        return tx.searchRun.findUnique({
+          where: { id: pending.id },
+          include: runInclude,
+        });
       });
 
       if (!job) break;
-      claimed.push(mapJob(job));
+      claimed.push(mapSearchRun(job));
     }
 
     return claimed;

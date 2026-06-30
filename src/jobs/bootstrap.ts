@@ -23,6 +23,8 @@ export async function bootstrapJobSystem(): Promise<void> {
     logger.info("Job system bootstrap complete");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error("Job system bootstrap failed — is PostgreSQL running?", { error: message });
+    logger.error("Job system bootstrap failed — check Supabase connection (DATABASE_URL)", {
+      error: message,
+    });
   }
 }

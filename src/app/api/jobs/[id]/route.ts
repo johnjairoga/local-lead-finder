@@ -9,7 +9,7 @@ interface RouteParams {
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const result = await container.jobService.getJobWithLeads(id);
+    const result = await container.jobService.getJobWithDiscovery(id);
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof AppError) {

@@ -8,11 +8,13 @@
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "scraper": "tsx src/scraper/main.ts",
-    "start:local": "powershell -ExecutionPolicy Bypass -File ./scripts/start-local.ps1"
+    "start:local": "powershell -ExecutionPolicy Bypass -File ./scripts/start-local.ps1",
+    "start:supabase": "powershell -ExecutionPolicy Bypass -File ./scripts/start-local.ps1"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",

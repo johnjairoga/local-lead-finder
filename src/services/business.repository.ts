@@ -1,0 +1,159 @@
+import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import type { Business, BusinessStatus, UpsertBusinessResult } from "@/types/business";
+import type { BusinessAttribute } from "@/scraper/types";
+import type { ScrapedBusiness } from "@/scraper/types";
+
+function mapAttributes(value: Prisma.JsonValue): BusinessAttribute[] {
+  return Array.isArray(value) ? (value as unknown as BusinessAttribute[]) : [];
+}
+
+function mapBusiness(record: {
+  id: string;
+  name: string;
+  googleMapsUrl: string;
+  phone: string | null;
+  email: string | null;
+  city: string | null;
+  country: string | null;
+  rating: number;
+  reviews: number;
+  businessAttributes: Prisma.JsonValue;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  lastSeenAt: Date;
+}): Business {
+  return {
+    id: record.id,
+    name: record.name,
+    googleMapsUrl: record.googleMapsUrl,
+    phone: record.phone,
+    email: record.email,
+    city: record.city ?? null,
+    country: record.country ?? null,
+    rating: record.rating,
+    reviews: record.reviews,
+    businessAttributes: mapAttributes(record.businessAttributes),
+    status: record.status as BusinessStatus,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    lastSeenAt: record.lastSeenAt,
+  };
+}
+
+export class BusinessRepository {
+  async upsertFromDiscovery(
+    collectionId: string,
+    businesses: ScrapedBusiness[]
+  ): Promise<UpsertBusinessResult> {
+    let newBusinessesAdded = 0;
+    let businessesUpdated = 0;
+    const now = new Date();
+
+    for (const scraped of businesses) {
+      const existing = await prisma.business.findUnique({
+        where: { googleMapsUrl: scraped.mapsUrl },
+      });
+
+      if (!existing) {
+        const created = await prisma.business.create({
+          data: {
+            name: scraped.name,
+            googleMapsUrl: scraped.mapsUrl,
+            phone: scraped.phone ?? null,
+            email: null,
+            rating: scraped.rating,
+            reviews: scraped.reviews,
+            businessAttributes: scraped.attributes as unknown as Prisma.InputJsonValue,
+            status: "NEW",
+            lastSeenAt: now,
+          },
+        });
+
+        await prisma.collectionBusiness.create({
+          data: {
+            collectionId,
+            businessId: created.id,
+          },
+        });
+
+        newBusinessesAdded++;
+        continue;
+      }
+
+      await prisma.business.update({
+        where: { id: existing.id },
+        data: {
+          name: scraped.name,
+          rating: scraped.rating,
+          reviews: scraped.reviews,
+          businessAttributes: scraped.attributes as unknown as Prisma.InputJsonValue,
+          lastSeenAt: now,
+          phone: existing.phone || scraped.phone || null,
+        },
+      });
+
+      await prisma.collectionBusiness.upsert({
+        where: {
+          collectionId_businessId: {
+            collectionId,
+            businessId: existing.id,
+          },
+        },
+        create: {
+          collectionId,
+          businessId: existing.id,
+        },
+        update: {},
+      });
+
+      businessesUpdated++;
+    }
+
+    return {
+      businessesFound: businesses.length,
+      newBusinessesAdded,
+      businessesUpdated,
+    };
+  }
+
+  async updateStatus(id: string, status: BusinessStatus): Promise<Business> {
+    const record = await prisma.business.update({
+      where: { id },
+      data: { status },
+    });
+    return mapBusiness(record);
+  }
+
+  async findById(id: string): Promise<Business | null> {
+    const record = await prisma.business.findUnique({ where: { id } });
+    return record ? mapBusiness(record) : null;
+  }
+
+  async findByCollectionId(collectionId: string): Promise<Business[]> {
+    const links = await prisma.collectionBusiness.findMany({
+      where: { collectionId },
+      include: { business: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return links.map((link) => mapBusiness(link.business));
+  }
+
+  async countAll(): Promise<number> {
+    return prisma.business.count();
+  }
+
+  async countByStatus(status: BusinessStatus): Promise<number> {
+    return prisma.business.count({ where: { status } });
+  }
+
+  async getLastDiscoveryAt(): Promise<Date | null> {
+    const latest = await prisma.business.findFirst({
+      orderBy: { lastSeenAt: "desc" },
+      select: { lastSeenAt: true },
+    });
+    return latest?.lastSeenAt ?? null;
+  }
+}

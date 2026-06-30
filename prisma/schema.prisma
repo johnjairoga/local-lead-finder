@@ -3,11 +3,29 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-enum JobStatus {
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum BusinessStatus {
+  NEW
+  NOT_CONTACTED
+  CONTACTED
+  NOT_INTERESTED
+  INTERESTED
+  CLIENT
+}
+
+enum BusinessSource {
+  GOOGLE_MAPS
+}
+
+enum SearchRunStatus {
   PENDING
   RUNNING
   COMPLETED
@@ -15,54 +33,143 @@ enum JobStatus {
   CANCELLED
 }
 
-model Job {
-  id              String    @id @default(cuid())
-  status          JobStatus @default(PENDING)
-  searchTerm      String
-  location        String
-  maxResults      Int
-  provider        String    @default("google-maps")
+// =============================================================================
+// PROFILES
+// Linked 1:1 to Supabase Auth (auth.users).
+// =============================================================================
 
-  processedCount  Int       @default(0)
-  totalCount      Int       @default(0)
-  qualifiedCount  Int       @default(0)
-  progress        Int       @default(0)
-  currentBusiness String?
+model Profile {
+  id        String   @id @db.Uuid
+  email     String?
+  fullName  String?  @map("full_name")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  errorMessage    String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  startedAt       DateTime?
-  completedAt     DateTime?
+  collections Collection[]
 
-  leads Lead[]
-
-  @@index([status])
-  @@index([createdAt])
+  @@index([email])
+  @@map("profiles")
 }
 
-model Lead {
+// =============================================================================
+// COLLECTIONS
+// Saved search owned by a user (niche + location + filter rules).
+// =============================================================================
+
+model Collection {
   id         String   @id @default(cuid())
-  jobId      String
-  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-
+  userId     String   @map("user_id") @db.Uuid
   name       String
-  rating     Float
-  reviews    Int
-  phone      String?
-  website    String?
-  address    String?
-  category   String?
-  attributes Json     @default("[]")
-  mapsUrl    String
+  searchTerm String   @map("search_term")
+  location   String
+  minRating  Float    @default(4) @map("min_rating")
+  maxReviews Int      @default(100) @map("max_reviews")
+  latinoOnly Boolean  @default(true) @map("latino_only")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  createdAt  DateTime @default(now())
+  user                 Profile              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  searchRuns           SearchRun[]
+  collectionBusinesses CollectionBusiness[]
 
-  @@index([jobId])
+  @@unique([userId, searchTerm, location])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("collections")
 }
+
+// =============================================================================
+// BUSINESSES
+// Global lead database; deduplicated by google_maps_url.
+// =============================================================================
+
+model Business {
+  id                 String         @id @default(cuid())
+  name               String
+  googleMapsUrl      String         @unique @map("google_maps_url")
+  phone              String?
+  email              String?
+  city               String?
+  country            String?
+  rating             Float
+  reviews            Int
+  businessAttributes Json           @default("[]") @map("business_attributes")
+  status             BusinessStatus @default(NEW)
+  source             BusinessSource @default(GOOGLE_MAPS)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lastSeenAt         DateTime       @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+
+  collectionBusinesses CollectionBusiness[]
+
+  @@index([name])
+  @@index([phone])
+  @@index([email])
+  @@index([city])
+  @@index([country])
+  @@index([status])
+  @@index([lastSeenAt])
+  @@index([source])
+  @@map("businesses")
+}
+
+// =============================================================================
+// COLLECTION_BUSINESSES
+// Pivot: a business may belong to many collections.
+// =============================================================================
+
+model CollectionBusiness {
+  collectionId String   @map("collection_id")
+  businessId   String   @map("business_id")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  business   Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, businessId])
+  @@index([collectionId])
+  @@index([businessId])
+  @@map("collection_businesses")
+}
+
+// =============================================================================
+// SEARCH_RUNS
+// One execution of a collection search (replaces legacy Job model).
+// =============================================================================
+
+model SearchRun {
+  id                String          @id @default(cuid())
+  collectionId      String          @map("collection_id")
+  startedAt         DateTime?       @map("started_at") @db.Timestamptz(3)
+  finishedAt        DateTime?       @map("finished_at") @db.Timestamptz(3)
+  status            SearchRunStatus @default(PENDING)
+  businessesFound   Int             @default(0) @map("businesses_found")
+  newBusinesses     Int             @default(0) @map("new_businesses")
+  updatedBusinesses Int             @default(0) @map("updated_businesses")
+  executionTime     Int?            @map("execution_time")
+  errorMessage      String?         @map("error_message")
+  metadata          Json            @default("{}")
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@index([collectionId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([finishedAt])
+  @@map("search_runs")
+}
+
+// =============================================================================
+// SYSTEM LOCK
+// Queue dispatch mutex (infrastructure — not part of domain schema).
+// =============================================================================
 
 model SystemLock {
   id       String   @id
-  lockedAt DateTime
-  lockedBy String?
+  lockedAt DateTime @map("locked_at") @db.Timestamptz(3)
+  lockedBy String?  @map("locked_by")
+
+  @@map("system_locks")
 }

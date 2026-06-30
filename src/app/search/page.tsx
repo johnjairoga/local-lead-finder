@@ -8,7 +8,7 @@ export default function SearchPage() {
         <CardHeader>
           <CardTitle>Find Leads</CardTitle>
           <CardDescription>
-            Search Google Maps for qualified local businesses in your target area.
+            Enter your niche and location to grow your lead database.
           </CardDescription>
         </CardHeader>
         <CardContent>
