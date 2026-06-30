@@ -17,6 +17,9 @@ type RunMetadata = {
   currentBusiness?: string | null;
   maxResults?: number;
   provider?: string;
+  searchTerm?: string;
+  location?: string;
+  businessIds?: string[];
 };
 
 function parseMetadata(value: unknown): RunMetadata {
@@ -28,7 +31,7 @@ function mapSearchRun(
   record: {
     id: string;
     status: PrismaSearchRunStatus;
-    collectionId: string;
+    collectionId: string | null;
     startedAt: Date | null;
     finishedAt: Date | null;
     businessesFound: number;
@@ -43,7 +46,7 @@ function mapSearchRun(
       searchTerm: string;
       location: string;
       maxReviews: number;
-    };
+    } | null;
   }
 ): JobRecord {
   const meta = parseMetadata(record.metadata);
@@ -52,8 +55,9 @@ function mapSearchRun(
     id: record.id,
     status: record.status as JobStatus,
     collectionId: record.collectionId,
-    searchTerm: record.collection.searchTerm,
-    location: record.collection.location,
+    // collection takes priority; fall back to metadata for public (no-collection) runs
+    searchTerm: record.collection?.searchTerm ?? meta.searchTerm ?? "",
+    location: record.collection?.location ?? meta.location ?? "",
     maxResults: meta.maxResults ?? 50,
     provider: (meta.provider as ScraperProviderName) ?? "google-maps",
     processedCount: meta.processedCount ?? 0,
@@ -79,11 +83,20 @@ const runInclude = {
   },
 } as const;
 
+// Helper to read business IDs stored in metadata for public search runs
+export function getBusinessIdsFromMetadata(metadata: unknown): string[] {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return [];
+  const m = metadata as Record<string, unknown>;
+  return Array.isArray(m.businessIds) ? (m.businessIds as string[]) : [];
+}
+
 export class JobRepository {
   async create(input: CreateJobInput): Promise<JobRecord> {
     const metadata: RunMetadata = {
       maxResults: input.maxResults,
       provider: input.provider ?? "google-maps",
+      searchTerm: input.searchTerm,
+      location: input.location,
       processedCount: 0,
       totalCount: 0,
       qualifiedCount: 0,
@@ -92,7 +105,7 @@ export class JobRepository {
 
     const record = await prisma.searchRun.create({
       data: {
-        collectionId: input.collectionId,
+        collectionId: input.collectionId ?? null,
         status: "PENDING",
         metadata,
       },
@@ -100,6 +113,11 @@ export class JobRepository {
     });
 
     return mapSearchRun(record);
+  }
+
+  async getRawMetadata(id: string): Promise<unknown> {
+    const record = await prisma.searchRun.findUnique({ where: { id }, select: { metadata: true } });
+    return record?.metadata ?? {};
   }
 
   async findById(id: string): Promise<JobRecord | null> {
@@ -151,6 +169,7 @@ export class JobRepository {
       businessesUpdated?: number;
       executionTimeMs?: number;
       progress?: number;
+      businessIds?: string[];
     }
   ): Promise<JobRecord> {
     const existing = await prisma.searchRun.findUnique({ where: { id } });
@@ -170,6 +189,7 @@ export class JobRepository {
           totalCount: data.totalCount ?? meta.totalCount,
           qualifiedCount: data.qualifiedCount ?? meta.qualifiedCount,
           progress: data.progress ?? meta.progress,
+          ...(data.businessIds !== undefined ? { businessIds: data.businessIds } : {}),
         },
       },
       include: runInclude,

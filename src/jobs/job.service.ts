@@ -7,7 +7,7 @@ import type { CreateJobInput, DiscoverySummary, JobProgress, JobRecord } from "@
 import { JobStatus } from "@/types/job";
 import type { Business } from "@/types/business";
 import { JobQueue } from "./job.queue";
-import { JobRepository } from "./job.repository";
+import { JobRepository, getBusinessIdsFromMetadata } from "./job.repository";
 
 /**
  * Layer 3 — Job orchestration service (Search Runs).
@@ -30,9 +30,6 @@ export class JobService {
     }
     if (!input.maxResults || input.maxResults < 1 || input.maxResults > 200) {
       throw new ValidationError("Maximum results must be between 1 and 200");
-    }
-    if (!input.collectionId) {
-      throw new ValidationError("Collection is required");
     }
   }
 
@@ -61,10 +58,19 @@ export class JobService {
       executionTimeMs: job.executionTimeMs,
     };
 
-    const businesses =
-      job.collectionId && job.status === JobStatus.COMPLETED
-        ? await this.businessService.getByCollectionId(job.collectionId)
-        : [];
+    let businesses: Business[] = [];
+    if (job.status === JobStatus.COMPLETED) {
+      if (job.collectionId) {
+        businesses = await this.businessService.getByCollectionId(job.collectionId);
+      } else {
+        // Public run: business IDs stored in metadata
+        const raw = await this.jobRepository.getRawMetadata(job.id);
+        const ids = getBusinessIdsFromMetadata(raw);
+        if (ids.length > 0) {
+          businesses = await this.businessService.getByIds(ids);
+        }
+      }
+    }
 
     return { job, progress, discovery, businesses };
   }
@@ -86,6 +92,7 @@ export class JobService {
       newBusinessesAdded?: number;
       businessesUpdated?: number;
       executionTimeMs?: number;
+      businessIds?: string[];
     }
   ): Promise<JobRecord> {
     const processed = data.processedCount ?? 0;
@@ -95,6 +102,7 @@ export class JobService {
     return this.jobRepository.updateProgress(jobId, {
       ...data,
       progress,
+      businessIds: data.businessIds,
     });
   }
 

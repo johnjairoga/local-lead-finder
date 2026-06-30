@@ -7,42 +7,51 @@ import type { CreateSearchRequest } from "@/types/api";
 
 export async function POST(request: NextRequest) {
   try {
-    // Require an authenticated session to start a search
+    const body = (await request.json()) as CreateSearchRequest;
+
+    // Check for an authenticated session (optional — public searches are allowed)
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "auth_required", message: "Debes iniciar sesión para realizar una búsqueda." },
-        { status: 401 }
-      );
+    let jobId: string;
+    let collectionId: string | undefined;
+
+    if (user) {
+      // Authenticated flow: create/find a collection and tie the run to it
+      const collection = await container.collectionService.findOrCreate({
+        name: body.collectionName,
+        searchTerm: body.searchTerm,
+        location: body.location,
+        filters: {
+          ...DEFAULT_SEARCH_FILTERS,
+          maxResults: body.maxResults,
+          provider: (body.provider as "google-maps") ?? DEFAULT_SEARCH_FILTERS.provider,
+        },
+      });
+
+      const job = await container.jobService.createAndEnqueue({
+        collectionId: collection.id,
+        searchTerm: body.searchTerm,
+        location: body.location,
+        maxResults: body.maxResults,
+        provider: (body.provider as "google-maps") ?? "google-maps",
+      });
+
+      jobId = job.id;
+      collectionId = collection.id;
+    } else {
+      // Public flow: run without a collection (businesses saved globally)
+      const job = await container.jobService.createAndEnqueue({
+        searchTerm: body.searchTerm,
+        location: body.location,
+        maxResults: body.maxResults,
+        provider: (body.provider as "google-maps") ?? "google-maps",
+      });
+
+      jobId = job.id;
     }
 
-    const body = (await request.json()) as CreateSearchRequest;
-
-    const collection = await container.collectionService.findOrCreate({
-      name: body.collectionName,
-      searchTerm: body.searchTerm,
-      location: body.location,
-      filters: {
-        ...DEFAULT_SEARCH_FILTERS,
-        maxResults: body.maxResults,
-        provider: (body.provider as "google-maps") ?? DEFAULT_SEARCH_FILTERS.provider,
-      },
-    });
-
-    const job = await container.jobService.createAndEnqueue({
-      collectionId: collection.id,
-      searchTerm: body.searchTerm,
-      location: body.location,
-      maxResults: body.maxResults,
-      provider: (body.provider as "google-maps") ?? "google-maps",
-    });
-
-    return NextResponse.json(
-      { jobId: job.id, collectionId: collection.id },
-      { status: 201 }
-    );
+    return NextResponse.json({ jobId, collectionId }, { status: 201 });
   } catch (error) {
     if (error instanceof AppError) {
       return NextResponse.json(

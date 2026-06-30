@@ -1,4 +1,5 @@
 import { LeadFilter } from "@/filters/lead.filter";
+import { DEFAULT_SEARCH_FILTERS } from "@/lib/constants";
 import { logger } from "@/lib/logger";
 import { getScraper } from "@/scraper";
 import type { ScrapedBusiness } from "@/scraper/types";
@@ -45,19 +46,20 @@ export class JobRunner {
       return;
     }
 
-    if (!job.collectionId) {
-      await this.jobService.markFailed(jobId, "Search run is missing a collection");
-      return;
-    }
-
     try {
-      const collection = await this.collectionService.getById(job.collectionId);
-      if (!collection) {
-        await this.jobService.markFailed(jobId, "Collection not found");
-        return;
+      // Resolve filters: from collection if available, else use defaults
+      let leadFilter: LeadFilter;
+      if (job.collectionId) {
+        const collection = await this.collectionService.getById(job.collectionId);
+        if (!collection) {
+          await this.jobService.markFailed(jobId, "Collection not found");
+          return;
+        }
+        leadFilter = new LeadFilter(collection.filters);
+      } else {
+        leadFilter = new LeadFilter(DEFAULT_SEARCH_FILTERS);
       }
 
-      const leadFilter = new LeadFilter(collection.filters);
       const scraper = getScraper(job.provider);
       const rawBusinesses: ScrapedBusiness[] = [];
 
@@ -91,13 +93,23 @@ export class JobRunner {
         duplicatesRemoved,
       });
 
-      const discovery = await this.businessService.upsertFromSearchRun(
-        job.collectionId,
-        qualified
-      );
+      let discovery;
+      let businesses;
+      let businessIds: string[] | undefined;
+
+      if (job.collectionId) {
+        // Authenticated run: save to collection
+        discovery = await this.businessService.upsertFromSearchRun(job.collectionId, qualified);
+        businesses = await this.businessService.getByCollectionId(job.collectionId);
+      } else {
+        // Public run: save globally, track IDs in metadata
+        const { result, ids } = await this.businessService.upsertPublic(qualified);
+        discovery = result;
+        businessIds = ids;
+        businesses = await this.businessService.getByIds(ids);
+      }
 
       const executionTimeMs = Date.now() - runStartedAt;
-      const businesses = await this.businessService.getByCollectionId(job.collectionId);
 
       await this.jobService.updateProgress(jobId, {
         qualifiedCount: qualified.length,
@@ -107,6 +119,7 @@ export class JobRunner {
         newBusinessesAdded: discovery.newBusinessesAdded,
         businessesUpdated: discovery.businessesUpdated,
         executionTimeMs,
+        businessIds,
       });
 
       await this.jobService.markCompleted(

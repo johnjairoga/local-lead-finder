@@ -47,7 +47,7 @@ export interface JobRecord extends SearchParams {
 
 export interface CreateJobInput extends SearchParams {
   provider?: ScraperProviderName;
-  collectionId: string;
+  collectionId?: string;
 }
 
 export interface DiscoverySummary {

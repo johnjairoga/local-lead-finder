@@ -118,6 +118,63 @@ export class BusinessRepository {
     };
   }
 
+  /** Upsert businesses for public (no-collection) search runs. Returns IDs of all affected businesses. */
+  async upsertPublic(businesses: ScrapedBusiness[]): Promise<{ result: UpsertBusinessResult; ids: string[] }> {
+    let newBusinessesAdded = 0;
+    let businessesUpdated = 0;
+    const ids: string[] = [];
+    const now = new Date();
+
+    for (const scraped of businesses) {
+      const existing = await prisma.business.findUnique({
+        where: { googleMapsUrl: scraped.mapsUrl },
+      });
+
+      if (!existing) {
+        const created = await prisma.business.create({
+          data: {
+            name: scraped.name,
+            googleMapsUrl: scraped.mapsUrl,
+            phone: scraped.phone ?? null,
+            email: null,
+            rating: scraped.rating,
+            reviews: scraped.reviews,
+            businessAttributes: scraped.attributes as unknown as Prisma.InputJsonValue,
+            status: "NEW",
+            lastSeenAt: now,
+          },
+        });
+        ids.push(created.id);
+        newBusinessesAdded++;
+      } else {
+        await prisma.business.update({
+          where: { id: existing.id },
+          data: {
+            name: scraped.name,
+            rating: scraped.rating,
+            reviews: scraped.reviews,
+            businessAttributes: scraped.attributes as unknown as Prisma.InputJsonValue,
+            lastSeenAt: now,
+            phone: existing.phone || scraped.phone || null,
+          },
+        });
+        ids.push(existing.id);
+        businessesUpdated++;
+      }
+    }
+
+    return {
+      result: { businessesFound: businesses.length, newBusinessesAdded, businessesUpdated },
+      ids,
+    };
+  }
+
+  async findByIds(ids: string[]): Promise<Business[]> {
+    if (ids.length === 0) return [];
+    const records = await prisma.business.findMany({ where: { id: { in: ids } } });
+    return records.map(mapBusiness);
+  }
+
   async updateStatus(id: string, status: BusinessStatus): Promise<Business> {
     const record = await prisma.business.update({
       where: { id },

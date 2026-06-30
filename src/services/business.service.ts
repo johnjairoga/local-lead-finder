@@ -46,8 +46,16 @@ export class BusinessService {
     return this.businessRepository.upsertFromDiscovery(collectionId, businesses);
   }
 
+  async upsertPublic(businesses: ScrapedBusiness[]): Promise<{ result: UpsertBusinessResult; ids: string[] }> {
+    return this.businessRepository.upsertPublic(businesses);
+  }
+
   getByCollectionId(collectionId: string) {
     return this.businessRepository.findByCollectionId(collectionId);
+  }
+
+  getByIds(ids: string[]) {
+    return this.businessRepository.findByIds(ids);
   }
 
   updateStatus(id: string, status: BusinessStatus) {

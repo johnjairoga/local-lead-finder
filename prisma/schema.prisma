@@ -139,7 +139,7 @@ model CollectionBusiness {
 
 model SearchRun {
   id                String          @id @default(cuid())
-  collectionId      String          @map("collection_id")
+  collectionId      String?         @map("collection_id")
   startedAt         DateTime?       @map("started_at") @db.Timestamptz(3)
   finishedAt        DateTime?       @map("finished_at") @db.Timestamptz(3)
   status            SearchRunStatus @default(PENDING)
@@ -152,7 +152,7 @@ model SearchRun {
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  collection Collection? @relation(fields: [collectionId], references: [id], onDelete: Cascade)
 
   @@index([collectionId])
   @@index([status])
