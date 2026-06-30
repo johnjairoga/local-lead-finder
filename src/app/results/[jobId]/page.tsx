@@ -95,9 +95,9 @@ export default function ResultsPage() {
   if (error) {
     return (
       <div className="mx-auto max-w-2xl py-12 text-center">
-        <p className="text-destructive">{error}</p>
+          <p className="text-destructive">{error}</p>
         <Link href="/" className="mt-4 inline-block text-sm text-primary hover:underline">
-          ← Back to search
+          ← Volver al inicio
         </Link>
       </div>
     );
@@ -130,10 +130,10 @@ export default function ResultsPage() {
         <CardHeader>
           <CardTitle>
             {isCompleted
-              ? `${discovery.businessesFound} businesses found`
+              ? `${discovery.businessesFound} negocios encontrados`
               : isFailed
-                ? "Search failed"
-                : "Searching Google Maps…"}
+                ? "La búsqueda falló"
+                : "Buscando en Google Maps…"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -146,7 +146,7 @@ export default function ResultsPage() {
 
           {isCompleted && (
             <p className="text-sm text-muted-foreground">
-              &quot;{job.searchTerm}&quot; in {job.location} — search complete.
+              &quot;{job.searchTerm}&quot; en {job.location} — búsqueda completada.
             </p>
           )}
 
@@ -160,7 +160,7 @@ export default function ResultsPage() {
       {isCompleted && businesses.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-slate-800">
-            Preview — first {Math.min(PREVIEW_COUNT, businesses.length)} results
+            Vista previa — primeros {Math.min(PREVIEW_COUNT, businesses.length)} resultados
           </h2>
 
           <div className="space-y-3">
@@ -183,16 +183,16 @@ export default function ResultsPage() {
             <Lock className="mx-auto mb-3 h-8 w-8 text-primary" />
             <h3 className="mb-1 text-xl font-bold text-slate-900">
               {hiddenCount > 0
-                ? `+ ${hiddenCount} more businesses waiting`
-                : "Save and manage your leads"}
+                ? `+ ${hiddenCount} negocios más te esperan`
+                : "Guarda y gestiona tus prospectos"}
             </h3>
             <p className="mb-5 text-sm text-slate-500">
-              Sign in to access the full list with phone numbers, filter by
-              status, and track your outreach.
+              Inicia sesión para ver la lista completa con teléfonos, filtrar
+              por estado y hacer seguimiento a cada prospecto.
             </p>
             <Button asChild size="lg" className="w-full sm:w-auto gap-2">
               <Link href="/login">
-                Access the full list — Sign in free
+                Acceder a la lista completa — Gratis
               </Link>
             </Button>
           </div>
@@ -202,14 +202,14 @@ export default function ResultsPage() {
       {isCompleted && businesses.length === 0 && (
         <Card>
           <CardContent className="pt-6 text-center text-muted-foreground">
-            No businesses matched your search. Try a different term or location.
+            No encontramos negocios con esos criterios. Prueba con otro término o ciudad.
           </CardContent>
         </Card>
       )}
 
       <div className="text-center">
         <Link href="/" className="text-sm text-slate-400 hover:text-slate-600 hover:underline">
-          ← New search
+          ← Nueva búsqueda
         </Link>
       </div>
     </div>

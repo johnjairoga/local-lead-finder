@@ -46,15 +46,15 @@ export default function HomePage() {
       <section className="mx-auto max-w-4xl px-4 pt-16 pb-12 text-center">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
           <MapPin className="h-3.5 w-3.5" />
-          Powered by Google Maps
+          Impulsado por Google Maps
         </div>
         <h1 className="mb-4 text-5xl font-extrabold tracking-tight text-slate-900">
-          Find Local Business{" "}
-          <span className="text-primary">Leads</span> in Seconds
+          Consigue más clientes{" "}
+          <span className="text-primary">latinos</span> en Estados Unidos.
         </h1>
         <p className="mx-auto mb-12 max-w-2xl text-lg text-slate-500">
-          Enter a business type and city. We scan Google Maps, filter the best prospects,
-          and hand you a ready-to-contact list — phone numbers included.
+          Encuentra empresas por industria y ciudad, organiza tus prospectos y convierte
+          cada búsqueda en nuevas oportunidades de negocio en segundos.
         </p>
 
         {/* Search form */}
@@ -63,11 +63,11 @@ export default function HomePage() {
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-2 text-left">
                 <Label htmlFor="searchTerm" className="font-semibold text-slate-700">
-                  Business type
+                  Tipo de negocio
                 </Label>
                 <Input
                   id="searchTerm"
-                  placeholder="e.g. HVAC contractor, dentist, gym…"
+                  placeholder="ej. restaurante, plomero, dentista…"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   required
@@ -78,11 +78,11 @@ export default function HomePage() {
 
               <div className="space-y-2 text-left">
                 <Label htmlFor="location" className="font-semibold text-slate-700">
-                  City
+                  Ciudad
                 </Label>
                 <Input
                   id="location"
-                  placeholder="e.g. Miami, FL"
+                  placeholder="ej. Miami, FL"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   required
@@ -94,7 +94,7 @@ export default function HomePage() {
 
             <div className="space-y-2 text-left">
               <Label htmlFor="maxResults" className="font-semibold text-slate-700">
-                Number of businesses to search
+                Cantidad de negocios a buscar
               </Label>
               <div className="flex items-center gap-4">
                 <input
@@ -127,7 +127,7 @@ export default function HomePage() {
               disabled={loading}
             >
               <Search className="h-4 w-4" />
-              {loading ? "Starting search…" : "Find Leads Now"}
+              {loading ? "Iniciando búsqueda…" : "Buscar prospectos ahora"}
             </Button>
           </form>
         </div>
@@ -135,33 +135,33 @@ export default function HomePage() {
 
       {/* How it works */}
       <section className="mx-auto max-w-4xl px-4 py-12">
-        <h2 className="mb-8 text-center text-2xl font-bold text-slate-800">How it works</h2>
+        <h2 className="mb-8 text-center text-2xl font-bold text-slate-800">¿Cómo funciona?</h2>
         <div className="grid gap-6 sm:grid-cols-3">
           <div className="rounded-xl border bg-white p-6 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Search className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="mb-2 font-semibold text-slate-800">1. Search</h3>
+            <h3 className="mb-2 font-semibold text-slate-800">1. Busca</h3>
             <p className="text-sm text-slate-500">
-              Enter the type of business and city you want to target.
+              Ingresa el tipo de negocio y la ciudad que quieres trabajar.
             </p>
           </div>
           <div className="rounded-xl border bg-white p-6 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
               <Star className="h-6 w-6 text-amber-500" />
             </div>
-            <h3 className="mb-2 font-semibold text-slate-800">2. Filter</h3>
+            <h3 className="mb-2 font-semibold text-slate-800">2. Filtra</h3>
             <p className="text-sm text-slate-500">
-              We automatically filter and score each business based on ratings and reviews.
+              Filtramos automáticamente cada negocio por calificación y reseñas.
             </p>
           </div>
           <div className="rounded-xl border bg-white p-6 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-50">
               <Phone className="h-6 w-6 text-green-600" />
             </div>
-            <h3 className="mb-2 font-semibold text-slate-800">3. Contact</h3>
+            <h3 className="mb-2 font-semibold text-slate-800">3. Contacta</h3>
             <p className="text-sm text-slate-500">
-              Get the full list with phone numbers and start reaching out right away.
+              Accede a la lista completa con teléfonos y comienza a contactar de inmediato.
             </p>
           </div>
         </div>

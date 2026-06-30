@@ -45,7 +45,7 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
-        setMessage("Check your email to confirm your account, then log in.");
+        setMessage("Revisa tu correo para confirmar tu cuenta y luego inicia sesión.");
         setMode("login");
       }
     }
@@ -61,28 +61,28 @@ export default function LoginPage() {
             <MapPin className="h-6 w-6" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Local Lead Finder AI</h1>
-          <p className="text-sm text-muted-foreground">Discover qualified local businesses</p>
+          <p className="text-sm text-muted-foreground">Clientes latinos en Estados Unidos</p>
         </div>
 
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">
-              {mode === "login" ? "Sign in to your account" : "Create an account"}
+              {mode === "login" ? "Inicia sesión en tu cuenta" : "Crea tu cuenta"}
             </CardTitle>
             <CardDescription>
               {mode === "login"
-                ? "Enter your credentials to access the dashboard"
-                : "Fill in your details to get started"}
+                ? "Ingresa tus credenciales para acceder al dashboard"
+                : "Completa tus datos para comenzar"}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Correo electrónico</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="tu@correo.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -90,7 +90,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Contraseña</Label>
                 <Input
                   id="password"
                   type="password"
@@ -115,31 +115,31 @@ export default function LoginPage() {
               )}
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}
+                {loading ? "Cargando..." : mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
               </Button>
             </form>
 
             <div className="mt-4 text-center text-sm text-muted-foreground">
               {mode === "login" ? (
                 <>
-                  Don&apos;t have an account?{" "}
+                  ¿No tienes cuenta?{" "}
                   <button
                     type="button"
                     onClick={() => { setMode("signup"); setError(null); setMessage(null); }}
                     className="font-medium text-primary hover:underline"
                   >
-                    Sign up
+                    Regístrate
                   </button>
                 </>
               ) : (
                 <>
-                  Already have an account?{" "}
+                  ¿Ya tienes cuenta?{" "}
                   <button
                     type="button"
                     onClick={() => { setMode("login"); setError(null); setMessage(null); }}
                     className="font-medium text-primary hover:underline"
                   >
-                    Sign in
+                    Inicia sesión
                   </button>
                 </>
               )}

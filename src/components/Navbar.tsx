@@ -32,7 +32,7 @@ export function Navbar({ userEmail }: NavbarProps) {
           {userEmail ? (
             <>
               <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">
-                Dashboard
+                Mis prospectos
               </Link>
               <span className="hidden text-slate-400 sm:block">{userEmail}</span>
               <Button
@@ -42,14 +42,14 @@ export function Navbar({ userEmail }: NavbarProps) {
                 className="flex items-center gap-1 text-slate-600 hover:text-slate-900"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Sign out</span>
+                <span className="hidden sm:inline">Salir</span>
               </Button>
             </>
           ) : (
             <Button asChild size="sm" variant="outline" className="gap-1.5">
               <Link href="/login">
                 <LogIn className="h-4 w-4" />
-                Sign in
+                Iniciar sesión
               </Link>
             </Button>
           )}
