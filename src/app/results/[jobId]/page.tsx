@@ -133,7 +133,7 @@ export default function ResultsPage() {
               ? `${discovery.businessesFound} negocios encontrados`
               : isFailed
                 ? "La búsqueda falló"
-                : "Buscando en Google Maps…"}
+                : "Buscando negocios…"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -46,7 +46,7 @@ export default function HomePage() {
       <section className="mx-auto max-w-4xl px-4 pt-16 pb-12 text-center">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
           <MapPin className="h-3.5 w-3.5" />
-          Impulsado por Google Maps
+          Prospección inteligente de negocios
         </div>
         <h1 className="mb-4 text-5xl font-extrabold tracking-tight text-slate-900">
           Consigue más clientes{" "}
