@@ -8,6 +8,8 @@ export interface CreateSearchRequest {
   maxResults: number;
   provider?: string;
   collectionName?: string;
+  /** ID of a prior job whose businesses should be skipped in this expanded search. */
+  previousJobId?: string;
 }
 
 export interface CreateSearchResponse {

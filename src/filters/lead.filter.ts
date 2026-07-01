@@ -35,15 +35,17 @@ export class LeadFilter {
   }
 
   passesRatingAndReviews(business: ScrapedBusiness): boolean {
-    const passesRating = business.rating >= this.minRating;
-    // reviews === 0 means "unknown" (couldn't be parsed from the page).
+    // rating === 0 means "no reviews yet" — a new/unrated business.
+    // We always let those through so emerging Latino businesses are included.
+    const passesRating = business.rating === 0 || business.rating >= this.minRating;
+    // reviews === 0 means "unknown count" or genuinely new business.
     // Don't reject unknowns — let them through so we don't lose valid leads.
     const passesReviews = business.reviews === 0 || business.reviews <= this.maxReviews;
     return passesRating && passesReviews;
   }
 
   rejectReason(business: ScrapedBusiness): string | null {
-    if (business.rating < this.minRating)
+    if (business.rating > 0 && business.rating < this.minRating)
       return `rating ${business.rating} < min ${this.minRating}`;
     if (business.reviews > 0 && business.reviews > this.maxReviews)
       return `reviews ${business.reviews} > max ${this.maxReviews}`;

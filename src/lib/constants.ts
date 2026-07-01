@@ -1,6 +1,6 @@
 import type { SearchFilters } from "@/types/collection";
 
-export const MIN_RATING = 4;
+export const MIN_RATING = 2;
 export const MAX_REVIEWS = 300;
 
 export const LATINO_OWNED_ATTRIBUTES = [
@@ -47,7 +47,7 @@ export const SCRAPER_RETRY_ATTEMPTS = 3;
 export const SCRAPER_RETRY_DELAY_MS = 1000;
 
 export const DEFAULT_SEARCH_FILTERS: SearchFilters = {
-  minRating: MIN_RATING,                         // ≥ 4.0 stars
+  minRating: MIN_RATING,                         // ≥ 2.0 stars — includes newer/smaller businesses
   maxReviews: 99999,                             // no cap — Latino businesses of any size
   requiredAttributes: [...LATINO_OWNED_ATTRIBUTES], // must identify as Latino/Latina-owned
   provider: DEFAULT_PROVIDER,

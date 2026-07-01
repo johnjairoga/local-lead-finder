@@ -20,6 +20,8 @@ type RunMetadata = {
   searchTerm?: string;
   location?: string;
   businessIds?: string[];
+  /** Lowercase names of businesses already scraped in a prior run — skip detail extraction. */
+  skipBusinessNames?: string[];
 };
 
 function parseMetadata(value: unknown): RunMetadata {
@@ -90,6 +92,13 @@ export function getBusinessIdsFromMetadata(metadata: unknown): string[] {
   return Array.isArray(m.businessIds) ? (m.businessIds as string[]) : [];
 }
 
+// Helper to read skip names stored in metadata for expanded search runs
+export function getSkipNamesFromMetadata(metadata: unknown): string[] {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return [];
+  const m = metadata as Record<string, unknown>;
+  return Array.isArray(m.skipBusinessNames) ? (m.skipBusinessNames as string[]) : [];
+}
+
 export class JobRepository {
   async create(input: CreateJobInput): Promise<JobRecord> {
     const metadata: RunMetadata = {
@@ -101,6 +110,7 @@ export class JobRepository {
       totalCount: 0,
       qualifiedCount: 0,
       progress: 0,
+      skipBusinessNames: input.skipBusinessNames ?? [],
     };
 
     const record = await prisma.searchRun.create({

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Star, Phone, MapPin, LayoutDashboard, ArrowLeft,
-  ExternalLink, UserCheck, MessageSquare, ArrowUpDown, Save,
+  ExternalLink, UserCheck, MessageSquare, ArrowUpDown, Save, Search,
 } from "lucide-react";
 import { JobStatusPanel } from "@/components/JobStatus";
 import { ProgressBar } from "@/components/ProgressBar";
@@ -103,6 +103,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 export default function ResultsPage() {
   const params = useParams<{ jobId: string }>();
   const jobId = params.jobId;
+  const router = useRouter();
 
   const [data, setData] = useState<JobResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +112,11 @@ export default function ResultsPage() {
   const [sortKey, setSortKey] = useState<SortKey>("rating-desc");
   const [claiming, setClaiming] = useState(false);
   const [claimedCollectionId, setClaimedCollectionId] = useState<string | null>(null);
+
+  // Expand-search state
+  const [expandCount, setExpandCount] = useState<number>(50);
+  const [expanding, setExpanding] = useState(false);
+  const expandInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data: { user } }) => {
@@ -145,6 +151,31 @@ export default function ResultsPage() {
       clearInterval(interval);
     };
   }, [jobId]);
+
+  async function handleExpandSearch() {
+    if (!data) return;
+    const { job } = data;
+    const newMax = job.maxResults + expandCount;
+    setExpanding(true);
+    try {
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          searchTerm: job.searchTerm,
+          location: job.location,
+          maxResults: newMax,
+          previousJobId: jobId, // tells the server which businesses to skip
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Error al ampliar búsqueda");
+      router.push(`/results/${body.jobId}`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error al ampliar búsqueda");
+      setExpanding(false);
+    }
+  }
 
   // useMemo must be called before any early returns (Rules of Hooks)
   const sortedBusinesses = useMemo(
@@ -325,15 +356,73 @@ export default function ResultsPage() {
       )}
 
       {isCompleted && businesses.length === 0 && (
-        <Card>
-          <CardContent className="pt-6 text-center space-y-2">
-            <p className="font-medium text-slate-700">
-              No encontramos negocios latinos con esos criterios.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              El filtro busca negocios que se identifiquen como <strong>empresas latinas o hispanas</strong> en esa categoría y ciudad.
-              No todos los negocios tienen ese atributo registrado. Prueba con otra ciudad o industria con más presencia latina.
-            </p>
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-6 space-y-5">
+            {/* Explanation */}
+            <div className="text-center space-y-1">
+              <p className="font-semibold text-slate-800">
+                No encontramos negocios latinos en los primeros {job.maxResults} resultados.
+              </p>
+              <p className="text-sm text-slate-500">
+                El filtro busca negocios que se identifiquen como{" "}
+                <strong>empresas latinas o hispanas</strong>. Puedes ampliar la búsqueda
+                para revisar más negocios de la misma categoría y ciudad.
+              </p>
+            </div>
+
+            {/* Expand panel */}
+            <div className="rounded-xl border border-amber-200 bg-white p-5 space-y-4">
+              <p className="text-sm font-medium text-slate-700 text-center">
+                ¿Cuántos negocios adicionales quieres revisar?
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                {/* Current total display */}
+                <div className="flex items-center gap-2 text-sm text-slate-500 whitespace-nowrap">
+                  <span>Búsqueda actual:</span>
+                  <span className="font-semibold text-slate-700">{job.maxResults} negocios</span>
+                </div>
+
+                <span className="hidden sm:block text-slate-300">+</span>
+
+                {/* Input */}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <input
+                    ref={expandInputRef}
+                    type="number"
+                    min={10}
+                    max={500}
+                    step={10}
+                    value={expandCount}
+                    onChange={(e) => setExpandCount(Math.max(10, Number(e.target.value)))}
+                    className="w-24 rounded-lg border border-slate-200 px-3 py-2 text-center text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                  <span className="text-sm text-slate-500">negocios más</span>
+                </div>
+
+                <span className="hidden sm:block text-slate-300">=</span>
+
+                {/* New total preview */}
+                <div className="text-sm font-bold text-amber-700 whitespace-nowrap">
+                  {job.maxResults + expandCount} en total
+                </div>
+              </div>
+
+              <Button
+                className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-white"
+                disabled={expanding}
+                onClick={handleExpandSearch}
+              >
+                <Search className="h-4 w-4" />
+                {expanding
+                  ? "Iniciando búsqueda ampliada…"
+                  : `Buscar ${job.maxResults + expandCount} negocios`}
+              </Button>
+
+              <p className="text-xs text-center text-slate-400">
+                La nueva búsqueda revisa un universo mayor y excluye duplicados automáticamente.
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}

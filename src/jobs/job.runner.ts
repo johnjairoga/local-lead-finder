@@ -7,7 +7,7 @@ import { BusinessService, CollectionService } from "@/services/business.service"
 import { ExportService } from "@/services/export.service";
 import { JobStatus } from "@/types/job";
 import { JobQueue } from "./job.queue";
-import { JobRepository } from "./job.repository";
+import { JobRepository, getSkipNamesFromMetadata } from "./job.repository";
 import { JobService } from "./job.service";
 import { ScraperProcess } from "./scraper.process";
 
@@ -63,11 +63,24 @@ export class JobRunner {
       const scraper = getScraper(job.provider);
       const rawBusinesses: ScrapedBusiness[] = [];
 
+      // Load skip-names from metadata (set by expanded searches to avoid re-scraping)
+      const rawMeta = await this.jobRepository.getRawMetadata(jobId);
+      const skipNames = getSkipNamesFromMetadata(rawMeta);
+      const skipSet = skipNames.length > 0 ? new Set(skipNames) : undefined;
+
+      if (skipSet?.size) {
+        logger.info("Expanded search: will skip already-processed businesses", {
+          jobId,
+          skipCount: skipSet.size,
+        });
+      }
+
       await scraper.scrape(
         {
           searchTerm: job.searchTerm,
           location: job.location,
           maxResults: job.maxResults,
+          skipNames: skipSet,
         },
         {
           onProgress: async ({ currentBusiness, processedCount, totalCount }) => {

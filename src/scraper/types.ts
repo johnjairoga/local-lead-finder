@@ -22,6 +22,8 @@ export interface ScrapeRequest {
   searchTerm: string;
   location: string;
   maxResults: number;
+  /** Names of businesses already processed in a prior run — skip detail extraction for these. */
+  skipNames?: Set<string>;
 }
 
 export interface ScrapeProgress {

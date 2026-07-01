@@ -48,6 +48,8 @@ export interface JobRecord extends SearchParams {
 export interface CreateJobInput extends SearchParams {
   provider?: ScraperProviderName;
   collectionId?: string;
+  /** Lowercase business names to skip during detail extraction (already processed). */
+  skipBusinessNames?: string[];
 }
 
 export interface DiscoverySummary {

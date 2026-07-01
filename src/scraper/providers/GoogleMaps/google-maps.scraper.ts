@@ -29,7 +29,25 @@ export class GoogleMapsScraper implements Scraper {
       await performSearch(page, searchTerm, location);
       await acceptCookiesIfPresent(page);
 
-      const listings = await scrollAndCollectListings(page, maxResults);
+      const allListings = await scrollAndCollectListings(page, maxResults);
+
+      // Filter out businesses already processed in a prior run to avoid
+      // re-visiting their detail pages (expensive: click + About tab + attributes).
+      const listings = request.skipNames?.size
+        ? allListings.filter(
+            (l) => !request.skipNames!.has(l.name.trim().toLowerCase())
+          )
+        : allListings;
+
+      const skippedCount = allListings.length - listings.length;
+      if (skippedCount > 0) {
+        logger.info("Skipping already-processed businesses", {
+          module: "GoogleMapsScraper",
+          skipped: skippedCount,
+          remaining: listings.length,
+        });
+      }
+
       const total = listings.length;
 
       logger.info("Starting raw business extraction", {
